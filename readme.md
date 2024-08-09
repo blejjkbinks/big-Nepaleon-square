@@ -16,7 +16,7 @@ oo.....o.............o	>>	o o . . . . . o . . . . . . . . . . . . . o
 .....o................	>>	. . . . . o . . . . . . . . . . . . . . . .
 ..........o...........	>>	. . . . . . . . . . o . . . . . . . . . . .
 ```
-The first line of the map (`10.ox`) tells us the number of lines, the "empty", "obstacle" and "square" characters.  
+The first line of the map (`10.ox`) tells us the number of lines, the `empty`, `obstacle` and `square` characters.  
 Invalid maps (different line lengths, invalid or duplicate characters, ...) must return "```map error```"  
 <sub>My program spaces out the output to render an actual square, but the provided map generator does not. The maps we read from do not include spaces.</sub>
 
@@ -112,14 +112,14 @@ indexes are calculated like this, where `x` is the width of the map and `i` the 
 # how to use
 
 in your terminal, enter the following commands:  
-`git clone git@github.com:blejjkbinks/big-Nepaleon-square.git bsq`  
+```git clone git@github.com:blejjkbinks/big-Nepaleon-square.git bsq```  
 `cd bsq`  
 `make`  
 `./map.pl` to generate a map  
-`./map.pl [width] [height] [a] [b] [X]` for different map sizes or characters
-you might need to `chmod 777 map.pl`
-`./map.pl [options] > map` to generate a file
-`cat map` to display the file
+`./map.pl [width] [height] [a] [b] [X]` for different map sizes or characters  
+you might need to `chmod 777 map.pl`  
+`./map.pl [options] > map` to generate a file  
+`cat map` to display the file  
 `./bsq map` to find THE BIGGEST SQUARE!!
 
 
