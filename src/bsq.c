@@ -5,91 +5,71 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: rdomange <romitdomange@gmail.com>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/07/30 00:36:43 by rdomange          #+#    #+#             */
-/*   Updated: 2024/07/30 16:10:01 by rdomange         ###   ########.fr       */
+/*   Created: 2024/08/06 16:36:04 by rdomange          #+#    #+#             */
+/*   Updated: 2024/08/09 13:58:04 by rdomange         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "bsq.h"
-#include <stdio.h>
 
-static int	ft_firstline(int fd, t_data *bsq)
+void	biggest_square(char *map, t_bsq *bsq)
 {
-	char	*line;
-	int		len;
+	int		*buffer;
+	int		cap;
+	long	i;
 
-	line = get_next_line(fd);
-	len = ft_strlen(line) - 1;
-	if (len <= 3 || fd == -1 || !line)
-	{
-		if (line)
-			free(line);
-		return (1);
-	}
-	bsq->y = ft_atoi(line, len - 3);
-	bsq->e = line[len - 3];
-	bsq->o = line[len - 2];
-	bsq->f = line[len - 1];
-	free(line);
-	if (bsq->y < 1 || bsq->e == bsq->o || bsq->e == bsq->f || bsq->o == bsq->f)
-		return (1);
-	return (0);
-}
-
-static int	ft_biggestsquare(int fd, t_data *bsq, unsigned int **map)
-{
-	int	*buffer;
-
-	*map = ft_mallocmap(fd, bsq);
-	if (!map)
-		return (1);
-	buffer = (int *)malloc((bsq->x * 2) * sizeof(int));
-	bsq->i = 0;
-	bsq->j = 0;
-	bsq->s = 0;
-	i_love_norm(bsq, *map, buffer);
-	free(buffer);
-	return (0);
-}
-
-static void	ft_printsquare(t_data *bsq, unsigned int *map)
-{
-	int	i;
-	int	j;
-
+	cap = bsq->x + 2;
+	buffer = (int *)malloc(cap * sizeof(int));
+	if (!buffer && write(1, "malloc fail\n", 12) + 2)
+		return ;
 	i = 0;
-	while (i < bsq->y)
+	bsq->s = 0;
+	while (i < bsq->x * bsq->y)
 	{
-		j = 0;
-		while (j < bsq->x)
+		buffer[i % cap] = neighbours(buffer, map, bsq, i);
+		if (buffer[i % cap] > bsq->s)
 		{
-			if (insquare(i, j, bsq))
-				ft_putchar((char)bsq->f);
-			else if (ft_bit(map, (bsq->x * i) + j, 2))
-				ft_putchar((char)bsq->o);
-			else
-				ft_putchar((char)bsq->e);
-			ft_putchar(' ');
-			j++;
+			bsq->s = buffer[i % cap];
+			bsq->i = i;
 		}
-		ft_putchar('\n');
 		i++;
 	}
+	free(buffer);
 }
 
-static int	ft_bsq(int fd)
+void	print_square(char *map, t_bsq bsq)
 {
-	t_data			bsq;
-	unsigned int	*map;
+	long	i;
 
-	map = NULL;
-	if (ft_firstline(fd, &bsq))
-		return (ft_putstr("map error\n"));
-	if (ft_biggestsquare(fd, &bsq, &map))
-		return (ft_putstr("map error\n"));
-	ft_printsquare(&bsq, map);
+	i = 0;
+	while (i < bsq.x * bsq.y)
+	{
+		if (ft_bit(map, i, 2))
+			write(1, &bsq.o, 1);
+		else if (insquare(i, bsq))
+			write(1, &bsq.f, 1);
+		else
+			write(1, &bsq.e, 1);
+		write(1, " ", 1);
+		i++;
+		if (!(i % bsq.x) && i)
+			write(1, "\n", 1);
+	}
+}
+
+int	ft_bsq(int fd)
+{
+	t_bsq	bsq;
+	char	*map;
+
+	bsq = (t_bsq){0, 0, 0, 0, 0, 0, 0};
+	map = get_map(fd, &bsq);
+	if (!map && write(1, "map error\n", 10) + 2)
+		return (0);
+	biggest_square(map, &bsq);
+	print_square(map, bsq);
 	free(map);
-	return (0);
+	return (bsq.s);
 }
 
 int	main(int argc, char **argv)
@@ -105,6 +85,8 @@ int	main(int argc, char **argv)
 		fd = open(argv[i], O_RDONLY);
 		ft_bsq(fd);
 		close(fd);
+		if (argc > 2 && i < argc - 1)
+			write(1, "\n", 1);
 	}
 	return (0);
 }

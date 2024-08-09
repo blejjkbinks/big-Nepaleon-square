@@ -1,3 +1,15 @@
+# **************************************************************************** #
+#                                                                              #
+#                                                         :::      ::::::::    #
+#    Makefile                                           :+:      :+:    :+:    #
+#                                                     +:+ +:+         +:+      #
+#    By: rdomange <romitdomange@gmail.com>          +#+  +:+       +#+         #
+#                                                 +#+#+#+#+#+   +#+            #
+#    Created: 2024/08/03 14:31:11 by rdomange          #+#    #+#              #
+#    Updated: 2024/08/07 15:43:12 by rdomange         ###   ########.fr        #
+#                                                                              #
+# **************************************************************************** #
+
 NAME := bsq
 
 HDR := ./src
@@ -11,12 +23,7 @@ MAKE := make
 SRC_DIR := ./src
 OBJ_DIR := ./obj
 
-SRC := \
-	bsq.c	\
-	utils.c	\
-	get_next_line.c	\
-	mallocmap.c	\
-	norm.c	\
+SRC := bsq.c get_map.c norminette.c
 
 SRC := $(patsubst %, $(SRC_DIR)/%, $(SRC))
 OBJ := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRC))
@@ -39,4 +46,3 @@ fclean: clean
 re: fclean all
 
 .PHONY: all clean fclean re
-

@@ -5,39 +5,34 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: rdomange <romitdomange@gmail.com>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/07/30 00:35:20 by rdomange          #+#    #+#             */
-/*   Updated: 2024/07/30 14:32:53 by rdomange         ###   ########.fr       */
+/*   Created: 2024/08/06 16:35:35 by rdomange          #+#    #+#             */
+/*   Updated: 2024/08/09 13:57:48 by rdomange         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef BSQ_H
 # define BSQ_H
 
-# include <unistd.h>
-# include <stdlib.h>
-# include <fcntl.h>
+# include <unistd.h>	//read, write
+# include <stdlib.h>	//malloc, free
+# include <fcntl.h>		//open, close
 
-typedef struct s_data
+typedef struct s_bsq
 {
-	int	y;
-	int	x;
-	int	e;
-	int	o;
-	int	f;
-	int	i;
-	int	j;
-	int	s;
-}	t_data;
+	long	x;
+	long	y;
+	char	e;
+	char	o;
+	char	f;
+	long	i;
+	int		s;
+}	t_bsq;
 
-void			ft_putchar(char c);
-int				ft_putstr(char *str);
-int				ft_strlen(char *str);
-int				ft_min(int a, int b);
-int				ft_atoi(char *str, int len);
-char			*get_next_line(int fd);
-unsigned int	*ft_mallocmap(int fd, t_data *bsq);
-int				ft_bit(unsigned int *arr, int i, int val);
-int				insquare(int i, int j, t_data *bsq);
-void			i_love_norm(t_data *bsq, unsigned int *map, int *buffer);
+int		ft_bit(char *arr, int i, int val);
+char	*get_map(int fd, t_bsq *bsq);
 
-#endif
+int		neighbours(int *buffer, char *map, t_bsq *bsq, int i);
+int		insquare(long i, t_bsq bsq);
+void	*ft_free(void *ptr);
+
+#endif	//bsq.h
