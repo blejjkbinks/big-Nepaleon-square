@@ -6,7 +6,7 @@
 /*   By: rdomange <romitdomange@gmail.com>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/06 16:35:54 by rdomange          #+#    #+#             */
-/*   Updated: 2024/08/06 16:35:56 by rdomange         ###   ########.fr       */
+/*   Updated: 2024/08/10 17:47:44 by rdomange         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -112,7 +112,7 @@ char	*get_map(int fd, t_bsq *bsq)
 		if (bsq->x && bsq->i == bsq->x * bsq->y && c == '\n')
 			return (map);
 	}
-	if (bsq->i != bsq->x * bsq->y || !bsq->x)
+	if ((bsq->i != bsq->x * bsq->y || !bsq->x) && map)
 		return (ft_free(map));
 	return (map);
 }
