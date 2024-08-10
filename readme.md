@@ -86,18 +86,18 @@ but we can do much better!!:
 * for the `int` data, we don't need $x\times y$, but only $x+2$, because we only need to store one line at a time  
 we just need to keep track of the biggest square we found so far, and its index
 ```
-. .[a b~.~.~.~.~o~.~.~o~.~.~.~.~.~.~.~.~.~.
-.~.~c ?]d . . o . . . . . . . . . . . . . o
+. .[a b~c~.~.~.~o~.~.~o~.~.~.~.~.~.~.~.~.~.
+.~.~d ?]! . . o . . . . . . . . . . . . . o
 . . . . . o x x x x x x . . . . . o . . . .
 . . . . . . x x x x x x o . . o . . . . . .
 . . o . . . x x x x x x . . . . . . . . . .
 . . . . . . x x x x x x . . . o . . . . o .
 . . o . . . x x x x x x o . . . . . . . . .
-. . . . . . x x x x x x . . . . .[a b~.~.~.
-.~.~.~.~.~o~.~.~.~.~.~.~.~.~.~.~.~c ?]d . .
+. . . . . . x x x x x x . . . . .[a b~c~.~.
+.~.~.~.~.~o~.~.~.~.~.~.~.~.~.~.~.~d ?]! . .
 . . . . . . . . . . o . . . . . . . . . . .
 ```
-> to find the value of `?`, we look at cells `a`, `b`, `c`. after that we can overwrite `a` to store `d`  
+> to find the value of `?`, we look at cells `a`, `b`, and `d`. after that we can overwrite `a` to store `!`, looking at cells `b`, `c` and `?`  
 
 this makes the total memory footprint 
 $((x\times y)/8)+((x+2)\times 4)$ `bytes` ($+(x\times 4)$ to read the first line)  
