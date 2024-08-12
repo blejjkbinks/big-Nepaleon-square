@@ -5,16 +5,28 @@ will you find the biggest square??
 The aim of this project is to find the biggest square on a map, avoiding obstacles.  
 ```
 10.ox
-........o..o..........	>>	. . . . . . . . o . . o . . . . . . . . . .
-oo.....o.............o	>>	o o . . . . . o . . . . . . . . . . . . . o
-.....o...........o....	>>	. . . . . o x x x x x x . . . . . o . . . .
-............o..o......	>>	. . . . . . x x x x x x o . . o . . . . . .
-..o...................	>>	. . o . . . x x x x x x . . . . . . . . . .
-...............o....o.	>>	. . . . . . x x x x x x . . . o . . . . o .
-..o.........o.........	>>	. . o . . . x x x x x x o . . . . . . . . .
-......................	>>	. . . . . . x x x x x x . . . . . . . . . .
-.....o................	>>	. . . . . o . . . . . . . . . . . . . . . .
-..........o...........	>>	. . . . . . . . . . o . . . . . . . . . . .
+........o..o..........
+oo.....o.............o
+.....o...........o....
+............o..o......
+..o...................
+...............o....o.
+..o.........o.........
+......................
+.....o................
+..........o...........
+```
+```
+. . . . . . . . o . . o . . . . . . . . . .
+o o . . . . . o . . . . . . . . . . . . . o
+. . . . . o x x x x x x . . . . . o . . . .
+. . . . . . x x x x x x o . . o . . . . . .
+. . o . . . x x x x x x . . . . . . . . . .
+. . . . . . x x x x x x . . . o . . . . o .
+. . o . . . x x x x x x o . . . . . . . . .
+. . . . . . x x x x x x . . . . . . . . . .
+. . . . . o . . . . . . . . . . . . . . . .
+. . . . . . . . . . o . . . . . . . . . . .
 ```
 The first line of the map (`10.ox`) tells us the number of lines, the `empty`, `obstacle` and `square` characters.  
 Invalid maps (different line lengths, invalid or duplicate characters, ...) must return "```map error```"  
