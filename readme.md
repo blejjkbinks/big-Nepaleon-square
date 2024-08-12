@@ -2,7 +2,8 @@
 [42 C piscine](https://42.fr/en/admissions/42-piscine/) final project  
 will you find the biggest square??
 ## problem definition
-The aim of this project is to find the biggest square on a map, avoiding obstacles.  
+the aim of this project is to find the biggest square on a map, avoiding obstacles.  
+>given map
 ```
 10.ox
 . . . . . . . . o . . o . . . . . . . . . .
@@ -28,7 +29,9 @@ o o . . . . . o . . . . . . . . . . . . . o
 . . . . . o . . . . . . . . . . . . . . . .
 . . . . . . . . . . o . . . . . . . . . . .
 ```
-The first line of the map (`10.ox`) tells us the number of lines, the `empty`, `obstacle` and `square` characters.  
+>after finding the biggest square!!  
+
+the first line of the map (`10.ox`) tells us the number of lines, the `empty`, `obstacle` and `square` characters.  
 Invalid maps (different line lengths, invalid or duplicate characters, ...) must return "```map error```"  
 <sub>My program spaces out the output to render an actual square, but the provided map generator does not. The maps we read from do not include spaces.</sub>
 
