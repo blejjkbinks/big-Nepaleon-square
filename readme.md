@@ -119,6 +119,7 @@ $((x\times y)/8)+((x+2)\times 4)$ `bytes` ($+(x\times 4)$ to read the first line
 instead of $((x\times y) \times 5)$ `bytes`  
 
 indexes are calculated like this, where `x` is the width of the map and `i` the index in the contiguous array  
+* the `bit` is at `arr[i / 8] & (1 << (i % 8))`
 * the `row` position is `i / x`
 * the `col` position is `i % x`
 * the `buf` position in the int array is `i % (x + 2)`
