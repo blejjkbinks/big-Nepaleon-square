@@ -56,7 +56,7 @@ char	*get_rules(int fd, t_bsq *bsq, int *cap)
 	while ('0' <= line[i] && line[i] <= '9' && i < bsq->i - 3)
 		bsq->y = (bsq->y * 10) + line[i++] - '0';
 	if (bsq->i < 4 || !bsq->y || i != bsq->i - 3 || line[bsq->i] != '\n')
-		return (NULL);
+		return (ft_free(line));
 	while (i++ < bsq->i)
 		if (!(' ' <= line[i - 1] && line[i - 1] <= '~'))
 			return (ft_free(line));
