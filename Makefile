@@ -23,7 +23,7 @@ MAKE := make
 SRC_DIR := ./src
 OBJ_DIR := ./obj
 
-SRC := bsq.c get_map.c norminette.c
+SRC := bsq.c norminette.c
 
 SRC := $(patsubst %, $(SRC_DIR)/%, $(SRC))
 OBJ := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRC))

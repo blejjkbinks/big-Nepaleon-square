@@ -12,7 +12,33 @@
 
 #include "bsq.h"
 
-void	biggest_square(char *map, t_bsq *bsq)
+int	main(int argc, char **argv)
+{
+	int		i;
+	int		fd;
+	t_bsq	bsq;
+	char	*map;
+
+	i = 0;
+	while (++i < argc || (argc == 1 && i == 1))
+	{
+		fd = 0;
+		if (argc > 1)
+			fd = open(argv[i], O_RDONLY);
+		bsq = (t_bsq){0, 0, 0, 0, 0, 0, 0};
+		map = get_map(fd, &bsq);
+		if (map)
+			ft_bsq(map, &bsq);
+		else
+			write(1, "map error\n", 10);
+		close(fd);
+		if (argc > 2 && i < argc - 1)
+			write(1, "\n", 1);
+	}
+	return (0);
+}
+
+int	ft_bsq(char *map, t_bsq *bsq)
 {
 	int		*buffer;
 	int		cap;
@@ -21,7 +47,7 @@ void	biggest_square(char *map, t_bsq *bsq)
 	cap = bsq->x + 2;
 	buffer = (int *)malloc(cap * sizeof(int));
 	if (!buffer && write(1, "malloc fail\n", 12) + 2)
-		return ;
+		return (0);
 	i = 0;
 	bsq->s = 0;
 	while (i < bsq->x * bsq->y)
@@ -34,7 +60,10 @@ void	biggest_square(char *map, t_bsq *bsq)
 		}
 		i++;
 	}
+	print_square(map, *bsq);
 	free(buffer);
+	free(map);
+	return (bsq->s);
 }
 
 void	print_square(char *map, t_bsq bsq)
@@ -57,36 +86,28 @@ void	print_square(char *map, t_bsq bsq)
 	}
 }
 
-int	ft_bsq(int fd)
+int	ft_bit(char *arr, int i, int val)
 {
-	t_bsq	bsq;
-	char	*map;
+	int	bsize;
+	int	ret;
 
-	bsq = (t_bsq){0, 0, 0, 0, 0, 0, 0};
-	map = get_map(fd, &bsq);
-	if (!map && write(1, "map error\n", 10) + 2)
-		return (0);
-	biggest_square(map, &bsq);
-	print_square(map, bsq);
-	free(map);
-	return (bsq.s);
+	if (!arr)
+		return (-1);
+	ret = 3;
+	bsize = sizeof(char) * 8;
+	if (val == 0)
+		arr[i / bsize] &= ~(1 << (i % bsize));
+	else if (val == 1)
+		arr[i / bsize] |= (1 << (i % bsize));
+	else if (val == 2)
+		ret = (arr[i / bsize] & (1 << (i % bsize))) != 0;
+	else
+		return (-2);
+	return (ret);
 }
 
-int	main(int argc, char **argv)
+void	*ft_free(void *ptr)
 {
-	int	i;
-	int	fd;
-
-	if (argc == 1)
-		ft_bsq(0);
-	i = 0;
-	while (++i < argc)
-	{
-		fd = open(argv[i], O_RDONLY);
-		ft_bsq(fd);
-		close(fd);
-		if (argc > 2 && i < argc - 1)
-			write(1, "\n", 1);
-	}
-	return (0);
+	free(ptr);
+	return (NULL);
 }
