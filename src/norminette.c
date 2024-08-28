@@ -12,7 +12,7 @@
 
 #include "bsq.h"
 
-int	ft_bit(char *arr, int i, int val)
+int	ft_bit(char *arr, long i, int val)
 {
 	int	bsize;
 	int	ret;
