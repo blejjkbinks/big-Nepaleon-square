@@ -23,15 +23,15 @@ int	main(int argc, char **argv)
 	i = 0;
 	while (++i < argc || (argc == 1 && i == 1))
 	{
+		bsq = (t_bsq){0, 0, 0, 0, 0, 0, 0};
 		if (argc > 1)
 			fd = open(argv[i], O_RDONLY);
-		bsq = (t_bsq){0, 0, 0, 0, 0, 0, 0};
 		map = get_map(fd, &bsq);
+		close(fd);
 		if (map)
 			ft_bsq(map, &bsq);
 		else
 			write(1, "map error\n", 10);
-		close(fd);
 		if (argc > 2 && i < argc - 1)
 			write(1, "\n", 1);
 	}
