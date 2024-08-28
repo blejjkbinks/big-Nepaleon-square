@@ -32,11 +32,11 @@ int		ft_bit(char *arr, int i, int val);
 void	*ft_free(void *ptr);
 
 char	*ft_realloc(char *src, t_bsq *bsq, int *cap, int step);
-char	*get_rules(int fd, t_bsq *bsq, int *cap);
 int		neighbours(int *buffer, char *map, t_bsq *bsq, long i);
 int		insquare(t_bsq bsq, long i);
 
 char	*get_map(int fd, t_bsq *bsq);
+char	*get_rules(int fd, t_bsq *bsq, int *cap);
 int		ft_bsq(char *map, t_bsq *bsq);
 void	print_square(char *map, t_bsq bsq);
 
