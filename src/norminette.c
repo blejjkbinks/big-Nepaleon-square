@@ -12,6 +12,32 @@
 
 #include "bsq.h"
 
+int	ft_bit(char *arr, int i, int val)
+{
+	int	bsize;
+	int	ret;
+
+	if (!arr)
+		return (-1);
+	ret = 3;
+	bsize = sizeof(char) * 8;
+	if (val == 0)
+		arr[i / bsize] &= ~(1 << (i % bsize));
+	else if (val == 1)
+		arr[i / bsize] |= (1 << (i % bsize));
+	else if (val == 2)
+		ret = (arr[i / bsize] & (1 << (i % bsize))) != 0;
+	else
+		return (-2);
+	return (ret);
+}
+
+void	*ft_free(void *ptr)
+{
+	free(ptr);
+	return (NULL);
+}
+
 char	*ft_realloc(char *src, t_bsq *bsq, int *cap, int step)
 {
 	char	*dst;
@@ -75,30 +101,4 @@ int	insquare(long i, t_bsq bsq)
 	if (!(i % bsq.x <= bsq.i % bsq.x))
 		return (0);
 	return (1);
-}
-
-int	ft_bit(char *arr, int i, int val)
-{
-	int	bsize;
-	int	ret;
-
-	if (!arr)
-		return (-1);
-	ret = 3;
-	bsize = sizeof(char) * 8;
-	if (val == 0)
-		arr[i / bsize] &= ~(1 << (i % bsize));
-	else if (val == 1)
-		arr[i / bsize] |= (1 << (i % bsize));
-	else if (val == 2)
-		ret = (arr[i / bsize] & (1 << (i % bsize))) != 0;
-	else
-		return (-2);
-	return (ret);
-}
-
-void	*ft_free(void *ptr)
-{
-	free(ptr);
-	return (NULL);
 }
