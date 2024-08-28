@@ -28,7 +28,7 @@ typedef struct s_bsq
 	int		s;
 }	t_bsq;
 
-int		ft_bit(char *arr, int i, int val);
+int		ft_bit(char *arr, long i, int val);
 void	*ft_free(void *ptr);
 
 char	*ft_realloc(char *src, t_bsq *bsq, int *cap, int step);
