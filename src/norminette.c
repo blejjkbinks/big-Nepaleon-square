@@ -66,7 +66,7 @@ char	*ft_realloc(char *src, t_bsq *bsq, int *cap, int step)
 	return (dst);
 }
 
-int	neighbours(int *buffer, char *map, t_bsq *bsq, int i)
+int	neighbours(int *buffer, char *map, t_bsq *bsq, long i)
 {
 	int	cap;
 	int	ret;
@@ -88,7 +88,7 @@ int	neighbours(int *buffer, char *map, t_bsq *bsq, int i)
 	return (ret);
 }
 
-int	insquare(long i, t_bsq bsq)
+int	insquare(t_bsq bsq, long i)
 {
 	if (!bsq.s)
 		return (0);

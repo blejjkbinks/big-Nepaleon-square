@@ -33,8 +33,8 @@ void	*ft_free(void *ptr);
 
 char	*ft_realloc(char *src, t_bsq *bsq, int *cap, int step);
 char	*get_rules(int fd, t_bsq *bsq, int *cap);
-int		neighbours(int *buffer, char *map, t_bsq *bsq, int i);
-int		insquare(long i, t_bsq bsq);
+int		neighbours(int *buffer, char *map, t_bsq *bsq, long i);
+int		insquare(t_bsq bsq, long i);
 
 char	*get_map(int fd, t_bsq *bsq);
 int		ft_bsq(char *map, t_bsq *bsq);

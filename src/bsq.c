@@ -75,7 +75,7 @@ void	print_square(char *map, t_bsq bsq)
 	{
 		if (ft_bit(map, i, 2))
 			write(1, &bsq.o, 1);
-		else if (insquare(i, bsq))
+		else if (insquare(bsq, i))
 			write(1, &bsq.f, 1);
 		else
 			write(1, &bsq.e, 1);
