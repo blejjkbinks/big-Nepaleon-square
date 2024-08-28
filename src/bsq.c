@@ -81,7 +81,7 @@ void	print_square(char *map, t_bsq bsq)
 			write(1, &bsq.e, 1);
 		write(1, " ", 1);
 		i++;
-		if (!(i % bsq.x) && i)
+		if (!(i % bsq.x))
 			write(1, "\n", 1);
 	}
 }
