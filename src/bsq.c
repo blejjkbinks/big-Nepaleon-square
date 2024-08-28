@@ -19,10 +19,10 @@ int	main(int argc, char **argv)
 	t_bsq	bsq;
 	char	*map;
 
+	fd = 0;
 	i = 0;
 	while (++i < argc || (argc == 1 && i == 1))
 	{
-		fd = 0;
 		if (argc > 1)
 			fd = open(argv[i], O_RDONLY);
 		bsq = (t_bsq){0, 0, 0, 0, 0, 0, 0};
@@ -94,7 +94,7 @@ char	*get_map(int fd, t_bsq *bsq)
 
 	cap = 4;
 	map = get_rules(fd, bsq, &cap);
-	while (read(fd, &c, 1) == 1 && map)
+	while (map && read(fd, &c, 1) == 1)
 	{
 		if ((bsq->i / 8) == cap && !bsq->x)
 			map = ft_realloc(map, bsq, &cap, 1);
