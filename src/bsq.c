@@ -40,38 +40,24 @@ int	main(int argc, char **argv)
 
 int	ft_bsq(char *map, t_bsq *bsq)
 {
-	int		*buffer;
-	long	cap;
+	int		*row;
 	long	i;
 
-	cap = bsq->x + 2;
-	buffer = (int *)malloc(cap * sizeof(int));
-	if (!buffer && write(2, "malloc fail\n", 12) + 2)
+	row = (int *)malloc((bsq->x + 1) * sizeof(int));
+	if (!row && write(2, "malloc fail\n", 12) + 2)
 		return (ft_free(map) != NULL);
 	i = 0;
-	while (i < bsq->x * bsq->y)
-	{
-		buffer[i % cap] = neighbours(buffer, map, bsq, i);
-		if (buffer[i % cap] > bsq->s)
-		{
-			bsq->s = buffer[i % cap];
-			bsq->b = i;
-		}
-		i++;
-	}
-	print_square(map, *bsq, (char *)buffer);
-	free(buffer);
+	while (i <= bsq->x)
+		row[i++] = 0;
+	i = 0;
+	while (i < bsq->y)
+		solve_row(row, map, bsq, i++);
+	i = 0;
+	while (i < bsq->y)
+		print_line(map, bsq, (char *)row, i++);
+	free(row);
 	free(map);
 	return (bsq->s);
-}
-
-void	print_square(char *map, t_bsq bsq, char *line)
-{
-	long	r;
-
-	r = 0;
-	while (r < bsq.y)
-		print_line(map, &bsq, line, r++);
 }
 
 char	*get_map(int fd, t_bsq *bsq)

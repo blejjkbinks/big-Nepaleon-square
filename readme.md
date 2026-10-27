@@ -97,32 +97,34 @@ but we can do much better!!:
 	> this is really tricky because $y$ is given, but $x$ is not, until we're done with the whole first line  
 * because the map is made of only "obstacle" and "empty" characters, we can store them as `1`s and `0`s, dividing the memory needed by a constant factor of $8$ (bits in one `char`)!!!!
 	> this is very cool because it's low level, a bit more efficient, and harder to implement, just for fun
-* for the `int` data, we don't need $x\times y$, but only $x+2$, because we only need to store one line at a time  
+* for the `int` data, we don't need $x\times y$, but only $x+1$, because we only need to store one line at a time  
 we just need to keep track of the biggest square we found so far, and its index
 ```
-. .[a b~c~.~.~.~o~.~.~o~.~.~.~.~.~.~.~.~.~.
-.~.~d ?]! . . o . . . . . . . . . . . . . o
+. . . . . . . . o . . o . . . . . . . . . .
+o o . . . . . o . . . . . . . . . . . . . o
 . . . . . o x x x x x x . . . . . o . . . .
 . . . . . . x x x x x x o . . o . . . . . .
 . . o . . . x x x x x x . . . . . . . . . .
 . . . . . . x x x x x x . . . o . . . . o .
 . . o . . . x x x x x x o . . . . . . . . .
-. . . . . . x x x x x x . . . . .[a b~c~.~.
-.~.~.~.~.~o~.~.~.~.~.~.~.~.~.~.~.~d ?]! . .
+. . . . . . x x x x x x . . . . d[t~.~.~.~.
+.~.~.~.~.~o~.~.~.~.~.~.~.~.~.~.~l]? . . . .
 . . . . . . . . . . o . . . . . . . . . . .
 ```
-> to find the value of `?`, we look at cells `a`, `b`, and `d`. after that we can overwrite `a` to store `!`, looking at cells `b`, `c` and `?`  
+> the `int` buffer holds the cells between `[` and `]`, following the `~`: the end of the previous row, and the start of the current row.  
+> to find the value of `?`, we look at `l` (left), `t` (top) and `d` (top-left). `d` was already overwritten when we computed `l`, so we keep it in one extra variable, `diag`. then `?` overwrites `t`, and `t` becomes the next `diag`.
+
+the buffer has one extra cell at the start that is always `0`: it's the column left of the map. the buffer also starts filled with `0`s: that's the row above the map. so the cells on the top and left edges need no special case, their neighbours are just `0`, so they get `0 + 1 = 1`.
 
 this makes the total memory footprint 
-$((x\times y)/8)+((x+2)\times 4)$ `bytes` ($+(x\times 4)$ to read the first line)  
+$((x\times y)/8)+((x+1)\times 4)$ `bytes` ($+(x\times 4)$ to read the first line)  
 instead of $((x\times y) \times 5)$ `bytes`  
 
-indexes are calculated like this, where `x` is the width of the map and `i` the index in the contiguous array  
+indexes are calculated like this, where `x` is the width of the map, `r` the row and `c` the column
+* the index in the contiguous array is `i = r * x + c`
 * the `bit` is at `arr[i / 8] & (1 << (i % 8))`
-* the `row` position is `i / x`
-* the `col` position is `i % x`
-* the `buf` position in the int array is `i % (x + 2)`
-* the three neighbours are `(i - 1)%(x+2)` `(i + 1)%(x+2)` and `(i + 2)%(x+2)`
+* column `c` is at `row[c + 1]` in the int buffer, `row[0]` is the always-`0` column left of the map
+* the three neighbours are `row[c]` (left, already from the current row), `row[c + 1]` (top, still from the previous row) and `diag` (top-left)
 
 # how to use
 

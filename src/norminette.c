@@ -66,26 +66,30 @@ char	*ft_realloc(char *src, t_bsq *bsq, long *cap, int step)
 	return (dst);
 }
 
-int	neighbours(int *buffer, char *map, t_bsq *bsq, long i)
+void	solve_row(int *row, char *map, t_bsq *bsq, long r)
 {
-	int	cap;
-	int	ret;
+	long	c;
+	int		diag;
+	int		top;
 
-	cap = bsq->x + 2;
-	if (ft_bit(map, i, 2))
-		ret = 0;
-	else if (i / bsq->x == 0 || i % bsq->x == 0)
-		ret = 1;
-	else
+	c = -1;
+	diag = 0;
+	while (++c < bsq->x)
 	{
-		ret = buffer[(i - 1) % cap];
-		if (ret > buffer[(i + 1) % cap])
-			ret = buffer[(i + 1) % cap];
-		if (ret > buffer[(i + 2) % cap])
-			ret = buffer[(i + 2) % cap];
-		ret++;
+		top = row[c + 1];
+		row[c + 1] = row[c];
+		if (top < row[c + 1])
+			row[c + 1] = top;
+		if (diag < row[c + 1])
+			row[c + 1] = diag;
+		row[c + 1] = (row[c + 1] + 1) * !ft_bit(map, r * bsq->x + c, 2);
+		diag = top;
+		if (row[c + 1] > bsq->s)
+		{
+			bsq->s = row[c + 1];
+			bsq->b = r * bsq->x + c;
+		}
 	}
-	return (ret);
 }
 
 void	print_line(char *map, t_bsq *bsq, char *line, long r)

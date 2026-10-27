@@ -38,12 +38,11 @@ int		ft_bit(char *arr, long i, int val);
 void	*ft_free(void *ptr);
 
 char	*ft_realloc(char *src, t_bsq *bsq, long *cap, int step);
-int		neighbours(int *buffer, char *map, t_bsq *bsq, long i);
+void	solve_row(int *row, char *map, t_bsq *bsq, long r);
 void	print_line(char *map, t_bsq *bsq, char *line, long r);
 
 char	*get_map(int fd, t_bsq *bsq);
 char	*get_rules(int fd, t_bsq *bsq, long *cap);
 int		ft_bsq(char *map, t_bsq *bsq);
-void	print_square(char *map, t_bsq bsq, char *line);
 
 #endif	//bsq.h
