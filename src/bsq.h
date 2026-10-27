@@ -17,26 +17,26 @@
 # include <stdlib.h>	//malloc, free
 # include <fcntl.h>		//open, close
 
-# define READ_BUF 4096
+# define READ_BUF 4096	//max bytes per read() after the first line
 
 # ifndef SPACED
-#  define SPACED 0
+#  define SPACED 0		//1 prints a space between cells: make spaced
 # endif
 
 typedef struct s_bsq
 {
-	long	x;
-	long	y;
-	char	e;
-	char	o;
-	char	f;
-	long	i;
-	long	r;
-	long	b;
-	int		s;
-	int		d;
-	int		*w;
-	char	*m;
+	long	x;		//width, length of the first line
+	long	y;		//height, number from the rules line
+	char	e;		//empty character
+	char	o;		//obstacle character
+	char	f;		//full character, draws the square
+	long	i;		//cells read so far, index of the next cell
+	long	r;		//rows read (or printed) so far
+	long	b;		//index of the bottom-right cell of the biggest square
+	int		s;		//size of the biggest square
+	int		d;		//diag, the top-left neighbour of the current cell
+	int		*w;		//row of square sizes, x + 1 ints, w[0] stays 0
+	char	*m;		//bitmap of obstacles, NULL when the file is read again
 }	t_bsq;
 
 int		ft_bit(char *arr, long i, int val);
