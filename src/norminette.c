@@ -54,54 +54,46 @@ char	*ft_grow(char *src, long len, long *cap, long size)
 	return (dst);
 }
 
-void	solve_row(int *row, char *map, t_bsq *bsq, long r)
+void	solve_cell(t_bsq *bsq, int obstacle)
 {
 	long	c;
-	int		diag;
 	int		top;
 
-	c = -1;
-	diag = 0;
-	while (++c < bsq->x)
+	c = bsq->i - bsq->r * bsq->x;
+	if (c == 0)
+		bsq->d = 0;
+	top = bsq->w[c + 1];
+	bsq->w[c + 1] = bsq->w[c];
+	if (top < bsq->w[c + 1])
+		bsq->w[c + 1] = top;
+	if (bsq->d < bsq->w[c + 1])
+		bsq->w[c + 1] = bsq->d;
+	bsq->w[c + 1] = (bsq->w[c + 1] + 1) * !obstacle;
+	bsq->d = top;
+	if (bsq->w[c + 1] > bsq->s)
 	{
-		top = row[c + 1];
-		row[c + 1] = row[c];
-		if (top < row[c + 1])
-			row[c + 1] = top;
-		if (diag < row[c + 1])
-			row[c + 1] = diag;
-		row[c + 1] = (row[c + 1] + 1) * !ft_bit(map, r * bsq->x + c, 2);
-		diag = top;
-		if (row[c + 1] > bsq->s)
-		{
-			bsq->s = row[c + 1];
-			bsq->b = r * bsq->x + c;
-		}
+		bsq->s = bsq->w[c + 1];
+		bsq->b = bsq->i;
 	}
+	if (bsq->m)
+		ft_bit(bsq->m, bsq->i, obstacle);
+	bsq->i++;
 }
 
-void	print_line(char *map, t_bsq *bsq, char *line, long r)
+int	alloc_map(t_bsq *bsq, int keep)
 {
 	long	c;
-	long	k;
-	long	t;
-	long	l;
 
-	t = bsq->b / bsq->x - bsq->s + 1;
-	l = bsq->b % bsq->x - bsq->s + 1;
-	c = -1;
-	k = 0;
-	while (++c < bsq->x)
+	bsq->w = (int *)malloc((bsq->x + 1) * sizeof(int));
+	if (bsq->w && keep)
+		bsq->m = (char *)malloc((bsq->x * bsq->y + 7) / 8);
+	if (!bsq->w || (keep && !bsq->m))
 	{
-		line[k] = bsq->e;
-		if (ft_bit(map, r * bsq->x + c, 2))
-			line[k] = bsq->o;
-		else if (r >= t && r < t + bsq->s && c >= l && c < l + bsq->s)
-			line[k] = bsq->f;
-		if (SPACED && c + 1 < bsq->x)
-			line[++k] = ' ';
-		k++;
+		write(2, "malloc fail\n", 12);
+		return (0);
 	}
-	line[k] = '\n';
-	write(1, line, k + 1);
+	c = 0;
+	while (c <= bsq->x)
+		bsq->w[c++] = 0;
+	return (1);
 }

@@ -20,7 +20,7 @@ CC := cc
 CFLAGS := -Wall -Wextra -Werror -I $(SRC_DIR)
 RM := rm -rf
 
-SRC := bsq.c norminette.c read.c
+SRC := bsq.c norminette.c read.c print.c
 
 SRC := $(patsubst %, $(SRC_DIR)/%, $(SRC))
 OBJ := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRC))

@@ -46,6 +46,7 @@ bsq.h: OK!
 norminette.c: OK!
 bsq.c: OK!
 read.c: OK!
+print.c: OK!
 	% norminette -v
 norminette 3.3.60
 ```
@@ -97,7 +98,7 @@ but we can do much better!!:
 	* at the end of the first line we know $x$, and $y$ was in the rules line, so we can allocate the exact space for the whole map
 	> this is really tricky because $y$ is given, but $x$ is not, until we're done with the whole first line  
 	* the rest of the map is read in chunks of at most `4096 bytes` (`READ_BUF`), never more than the size of the map. a column counter decides where each `\n` must be, so it doesn't matter where a chunk ends, and a line that's too long can never write past the map
-	* the read buffer is freed before we start solving
+	* we solve while reading: each cell goes into the `int` row as soon as it's parsed, so solving never needs a second pass over the map
 * because the map is made of only "obstacle" and "empty" characters, we can store them as `1`s and `0`s, dividing the memory needed by a constant factor of $8$ (bits in one `char`)!!!!
 	> this is very cool because it's low level, a bit more efficient, and harder to implement, just for fun
 * for the `int` data, we don't need $x\times y$, but only $x+1$, because we only need to store one line at a time  
@@ -119,11 +120,23 @@ o o . . . . . o . . . . . . . . . . . . . o
 
 the buffer has one extra cell at the start that is always `0`: it's the column left of the map. the buffer also starts filled with `0`s: that's the row above the map. so the cells on the top and left edges need no special case, their neighbours are just `0`, so they get `0 + 1 = 1`.
 
-this makes the peak memory footprint 
-$\lceil(x\times y)/8\rceil+max(B, (x+1)\times 4)$ `bytes`, where $B$ is the read buffer: $4096$ `bytes`, or the whole map ($y\times (x+1)$ `bytes`) if that's smaller, or less than $2\times (x+1)$ `bytes` if the first line alone is longer than that  
+this makes the peak memory footprint, when reading from the standard input, 
+$\lceil(x\times y)/8\rceil+B+(x+1)\times 4$ `bytes`, where $B$ is the read buffer: $4096$ `bytes`, or the whole map ($y\times (x+1)$ `bytes`) if that's smaller, or less than $2\times (x+1)$ `bytes` if the first line alone is longer than that  
 instead of $((x\times y) \times 5)$ `bytes`  
 
-measured with `valgrind --tool=massif`, on an 80 by 40 map that's $400 + 3240 = 3640$ bytes (the whole map fits in the read buffer), and on a 2000 by 2000 map, $500001 + 8004 = 508004$ bytes: the read buffer is smaller than the `int` row, so reading costs no extra memory at all. on that map, reading takes about 1000 `read` calls, instead of 4 million when reading one byte at a time.
+measured with `valgrind --tool=massif`, on a 2000 by 2000 map that's $500000 + 4096 + 8004 = 512100$ bytes, and reading takes about 1000 `read` calls, instead of 4 million when reading one byte at a time.
+
+### even smaller: don't keep the map at all
+the bitmap is only needed to print the solution at the end. when the map is a file, we can skip it entirely: solve while reading, `close` the file, `open` it again, and print it while reading it a second time, replacing the cells inside the square on the way. the only things left in memory are the `int` row and the read buffer:  
+$B+(x+1)\times 4$ `bytes` on the heap, plus a $4096$ `bytes` buffer on the stack for the second read.
+
+| 2000 by 2000 map | peak heap | `read` calls |
+|---|---|---|
+| `./bsq map` (read twice, no bitmap) | 12100 bytes | ~2000 |
+| `./bsq < map` (bitmap) | 512100 bytes | ~1000 |
+
+the standard input can't be read twice, so `./bsq < map` keeps the bitmap. a pipe passed by name, like `./bsq <(cat map)`, can't be read twice either, and the program can't tell it's a pipe without `lseek` or `fstat`, so it prints `map error` when the second read comes up short. a file that changes between the two reads would print the new contents with the old square: it's never read out of bounds, but the output would be wrong.
+
 
 indexes are calculated like this, where `x` is the width of the map, `r` the row and `c` the column
 * the index in the contiguous array is `i = r * x + c`
@@ -146,7 +159,7 @@ in your terminal, enter the following commands:
 `./map.pl [options] > map` to generate a file  
 `cat map` to display the file  
 `./bsq map` to find THE BIGGEST SQUARE!!  
-`./bsq map1 map2 ...` to solve several maps, or `./bsq < map` to read from the standard input
+`./bsq map1 map2 ...` to solve several maps, or `./bsq < map` to read from the standard input (files are read twice to save memory, the standard input is read once and kept as a bitmap)
 
 
 ### norminette atrocities
@@ -338,4 +351,4 @@ every one of these is real, from `src/`. each one keeps a function under 25 line
 | `while (k == 1 && line[n] != '\n' && ++n < 14)`<br>`k = read(fd, &line[n], 1);` | the end-of-file check, the end-of-line check and the counter all live in the loop condition, so the body is one line and needs no braces | a `while (n < 14)` loop with a `read`, then two `if`s with a `break`, then `n++` |
 | the `t_bsq` struct carries the map's state everywhere | one pointer instead of 6 parameters (the limit is 4) and instead of 6 local variables (the limit is 5) | separate variables and parameters |
 | `ft_bit(map, i, 0)`, `ft_bit(map, i, 1)`, `ft_bit(map, i, 2)`: clear, set or read one bit | one function slot instead of three (the limit is 5 per file) | `bit_clear`, `bit_set`, `bit_get` |
-| `row[c + 1] = (row[c + 1] + 1) * !ft_bit(map, i, 2);` | multiplying by `0` or `1` replaces an `if`/`else`: 3 lines | `if (ft_bit(map, i, 2))`<br>`row[c + 1] = 0;`<br>`else`<br>`row[c + 1]++;` |
+| `bsq->w[c + 1] = (bsq->w[c + 1] + 1) * !obstacle;` | multiplying by `0` or `1` replaces an `if`/`else`: 3 lines | `if (obstacle)`<br>`bsq->w[c + 1] = 0;`<br>`else`<br>`bsq->w[c + 1]++;` |

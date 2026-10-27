@@ -12,29 +12,23 @@
 
 #include "bsq.h"
 
-char	*get_map(int fd, t_bsq *bsq)
+int	get_map(int fd, t_bsq *bsq, int keep)
 {
 	char	*buf;
-	char	*map;
 	long	len;
 	long	cap;
+	int		ok;
 
 	if (!get_rules(fd, bsq))
-		return (NULL);
+		return (0);
 	buf = first_line(fd, bsq, &len, &cap);
 	if (buf)
 		buf = fit_buf(buf, len, &cap, bsq);
-	map = NULL;
-	if (buf)
-		map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
-	if (buf && !map)
-		write(2, "malloc fail\n", 12);
-	while (map && len > 0 && parse(buf, len, map, bsq) && bsq->r < bsq->y)
+	ok = (buf && alloc_map(bsq, keep));
+	while (ok && len > 0 && parse(buf, len, bsq) && bsq->r < bsq->y)
 		len = read(fd, buf, cap);
 	free(buf);
-	if (bsq->r < bsq->y)
-		return (ft_free(map));
-	return (map);
+	return (bsq->r == bsq->y);
 }
 
 int	get_rules(int fd, t_bsq *bsq)
@@ -104,7 +98,7 @@ char	*fit_buf(char *buf, long len, long *cap, t_bsq *bsq)
 	return (buf);
 }
 
-int	parse(char *buf, long len, char *map, t_bsq *bsq)
+int	parse(char *buf, long len, t_bsq *bsq)
 {
 	long	k;
 
@@ -115,7 +109,7 @@ int	parse(char *buf, long len, char *map, t_bsq *bsq)
 			bsq->r++;
 		else if (bsq->i < (bsq->r + 1) * bsq->x
 			&& (buf[k] == bsq->e || buf[k] == bsq->o))
-			ft_bit(map, bsq->i++, buf[k] == bsq->o);
+			solve_cell(bsq, buf[k] == bsq->o);
 		else
 			return (0);
 	}
