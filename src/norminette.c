@@ -38,30 +38,18 @@ void	*ft_free(void *ptr)
 	return (NULL);
 }
 
-char	*ft_realloc(char *src, t_bsq *bsq, long *cap, int step)
+char	*ft_grow(char *src, long len, long *cap, long size)
 {
 	char	*dst;
 	long	i;
 
-	if (step == 2)
-		bsq->x = bsq->i;
-	if (step == 2)
-		*cap = ((bsq->x * bsq->y) + 8) / 8;
-	else
-		*cap *= 2;
-	dst = (char *)malloc(*cap * sizeof(char));
+	*cap = size;
+	dst = (char *)malloc(size);
 	if (!dst && write(2, "malloc fail\n", 12) + 2)
 		return (ft_free(src));
-	i = 0;
-	if (step == 0)
-		bsq->i *= 8;
-	while (i < bsq->i)
-	{
-		ft_bit(dst, i, ft_bit(src, i, 2));
-		i++;
-	}
-	if (step == 0)
-		bsq->i /= 8;
+	i = -1;
+	while (++i < len)
+		dst[i] = src[i];
 	free(src);
 	return (dst);
 }

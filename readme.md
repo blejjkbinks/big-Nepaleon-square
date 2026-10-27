@@ -45,6 +45,7 @@ no "for loops"
 bsq.h: OK!
 norminette.c: OK!
 bsq.c: OK!
+read.c: OK!
 	% norminette -v
 norminette 3.3.60
 ```
@@ -90,11 +91,13 @@ for a map of dimensions $x\times y$,
 your first instinct might be to allocate $x\times y$ `char` to store the map and $x\times y$ `int` to calculate the values.  
 but we can do much better!!:  
 * because we keep track of the map's dimension in a separate `t_bsq` variable, we can store the map in a one-dimension `char` array, which means simpler allocation, saving space that would be needed for multiple pointers, and more efficient accessing.  
-* when reading the map, no allocated memory is wasted:  
-	* we start with `4 bytes` to read the "rules line". if more is needed, we double this array
-	* this same array is then used to read the first line of the map, doubling again as many times as needed  
-	* at the end of the first line, we can allocate the exact space for the whole map
+* when reading the map, the map itself is allocated exactly once, at its exact size:  
+	* the "rules line" is at most 14 characters (10 digits for `INT_MAX`, 3 characters, `\n`), so it's read into a 14 `char` array on the stack, one byte at a time. it's never more than 14 `read`s, and it never reads past the `\n`
+	* the first line of the map is read in chunks into a buffer that starts at `64 bytes` and doubles until the first `\n` fits. this is the only buffer that grows, and it's only bytes, so growing it is a simple copy
+	* at the end of the first line we know $x$, and $y$ was in the rules line, so we can allocate the exact space for the whole map
 	> this is really tricky because $y$ is given, but $x$ is not, until we're done with the whole first line  
+	* the rest of the map is read in chunks of at most `4096 bytes` (`READ_BUF`), never more than the size of the map. a column counter decides where each `\n` must be, so it doesn't matter where a chunk ends, and a line that's too long can never write past the map
+	* the read buffer is freed before we start solving
 * because the map is made of only "obstacle" and "empty" characters, we can store them as `1`s and `0`s, dividing the memory needed by a constant factor of $8$ (bits in one `char`)!!!!
 	> this is very cool because it's low level, a bit more efficient, and harder to implement, just for fun
 * for the `int` data, we don't need $x\times y$, but only $x+1$, because we only need to store one line at a time  
@@ -116,9 +119,11 @@ o o . . . . . o . . . . . . . . . . . . . o
 
 the buffer has one extra cell at the start that is always `0`: it's the column left of the map. the buffer also starts filled with `0`s: that's the row above the map. so the cells on the top and left edges need no special case, their neighbours are just `0`, so they get `0 + 1 = 1`.
 
-this makes the total memory footprint 
-$((x\times y)/8)+((x+1)\times 4)$ `bytes` ($+(x\times 4)$ to read the first line)  
+this makes the peak memory footprint 
+$\lceil(x\times y)/8\rceil+max(B, (x+1)\times 4)$ `bytes`, where $B$ is the read buffer: $4096$ `bytes`, or the whole map ($y\times (x+1)$ `bytes`) if that's smaller, or less than $2\times (x+1)$ `bytes` if the first line alone is longer than that  
 instead of $((x\times y) \times 5)$ `bytes`  
+
+measured with `valgrind --tool=massif`, on an 80 by 40 map that's $400 + 3240 = 3640$ bytes (the whole map fits in the read buffer), and on a 2000 by 2000 map, $500001 + 8004 = 508004$ bytes: the read buffer is smaller than the `int` row, so reading costs no extra memory at all. on that map, reading takes about 1000 `read` calls, instead of 4 million when reading one byte at a time.
 
 indexes are calculated like this, where `x` is the width of the map, `r` the row and `c` the column
 * the index in the contiguous array is `i = r * x + c`
@@ -327,10 +332,10 @@ every one of these is real, from `src/`. each one keeps a function under 25 line
 
 | trick | what it saves | honest version |
 |---|---|---|
-| `if (!buffer && write(2, "malloc fail\n", 12) + 2)`<br>`return (NULL);` | `write` returns a number, `+ 2` makes it non-zero even on failure, so the message fits inside the condition: 2 lines | `if (!buffer)`<br>`{`<br>`write(2, "malloc fail\n", 12);`<br>`return (NULL);`<br>`}` |
-| `return (ft_free(map));` where `ft_free` frees and returns `NULL` | 1 line per error exit, and there are a lot of error exits | `free(map);`<br>`return (NULL);` |
+| `if (!dst && write(2, "malloc fail\n", 12) + 2)`<br>`return (ft_free(src));` | `write` returns a number, `+ 2` makes it non-zero even on failure, so the message fits inside the condition: 2 lines | `if (!dst)`<br>`{`<br>`write(2, "malloc fail\n", 12);`<br>`free(src);`<br>`return (NULL);`<br>`}` |
+| `return (ft_free(buf));` where `ft_free` frees and returns `NULL` | 1 line per error exit, and there are a lot of error exits | `free(buf);`<br>`return (NULL);` |
 | `while (++c < bsq->x)` with `c = -1;` before the loop | the `c++;` line at the end of the loop body | `c = 0;`<br>`while (c < bsq->x)`<br>`{`<br>`...`<br>`c++;`<br>`}` |
-| `while (line && read(fd, &line[bsq->i], 1) == 1 && line[bsq->i] != '\n')` | the reading, the end-of-line check and the `NULL` check all live in the loop condition, so the body is a single `if` and needs no braces | a `read`, then an `if` with a `break`, then the rest of the body |
+| `while (k == 1 && line[n] != '\n' && ++n < 14)`<br>`k = read(fd, &line[n], 1);` | the end-of-file check, the end-of-line check and the counter all live in the loop condition, so the body is one line and needs no braces | a `while (n < 14)` loop with a `read`, then two `if`s with a `break`, then `n++` |
 | the `t_bsq` struct carries the map's state everywhere | one pointer instead of 6 parameters (the limit is 4) and instead of 6 local variables (the limit is 5) | separate variables and parameters |
 | `ft_bit(map, i, 0)`, `ft_bit(map, i, 1)`, `ft_bit(map, i, 2)`: clear, set or read one bit | one function slot instead of three (the limit is 5 per file) | `bit_clear`, `bit_set`, `bit_get` |
-| `ft_realloc(..., step)` does a different job for each `step` | same, one function slot instead of three | three functions |
+| `row[c + 1] = (row[c + 1] + 1) * !ft_bit(map, i, 2);` | multiplying by `0` or `1` replaces an `if`/`else`: 3 lines | `if (ft_bit(map, i, 2))`<br>`row[c + 1] = 0;`<br>`else`<br>`row[c + 1]++;` |
