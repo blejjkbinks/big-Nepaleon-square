@@ -12,30 +12,29 @@
 
 NAME := bsq
 
-HDR := ./src
-
-AR := ar rcs
-CC := cc -Wall -Wextra -Werror -I $(HDR) -g
-RM := rm -rf
-MK := mkdir -p
-MAKE := make
-
 SRC_DIR := ./src
 OBJ_DIR := ./obj
+HDR := $(SRC_DIR)/bsq.h
+
+CC := cc
+CFLAGS := -Wall -Wextra -Werror -I $(SRC_DIR)
+RM := rm -rf
 
 SRC := bsq.c norminette.c
 
 SRC := $(patsubst %, $(SRC_DIR)/%, $(SRC))
 OBJ := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRC))
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	@$(MK) $(OBJ_DIR)
-	@$(CC) -c $< -o $@
+all: $(NAME)
 
 $(NAME): $(OBJ)
-	@$(CC) $(OBJ) -o $(NAME)
+	@$(CC) $(CFLAGS) $(OBJ) -o $(NAME)
 
-all: $(NAME)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HDR) | $(OBJ_DIR)
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR):
+	@mkdir -p $(OBJ_DIR)
 
 clean:
 	@$(RM) $(OBJ_DIR)
@@ -45,4 +44,10 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all clean fclean re
+debug: CFLAGS += -g -fsanitize=address,undefined
+debug: re
+
+spaced: CFLAGS += -D SPACED=1
+spaced: re
+
+.PHONY: all clean fclean re debug spaced

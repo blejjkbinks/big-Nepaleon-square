@@ -23,7 +23,7 @@ int	main(int argc, char **argv)
 	i = 0;
 	while (++i < argc || (argc == 1 && i == 1))
 	{
-		bsq = (t_bsq){0, 0, 0, 0, 0, 0, 0};
+		bsq = (t_bsq){0, 0, 0, 0, 0, 0, 0, 0, 0};
 		if (argc > 1)
 			fd = open(argv[i], O_RDONLY);
 		map = get_map(fd, &bsq);
@@ -31,7 +31,7 @@ int	main(int argc, char **argv)
 		if (map)
 			ft_bsq(map, &bsq);
 		else
-			write(1, "map error\n", 10);
+			write(2, "map error\n", 10);
 		if (argc > 2 && i < argc - 1)
 			write(1, "\n", 1);
 	}
@@ -41,66 +41,54 @@ int	main(int argc, char **argv)
 int	ft_bsq(char *map, t_bsq *bsq)
 {
 	int		*buffer;
-	int		cap;
+	long	cap;
 	long	i;
 
 	cap = bsq->x + 2;
 	buffer = (int *)malloc(cap * sizeof(int));
-	if (!buffer && write(1, "malloc fail\n", 12) + 2)
-		return (0);
+	if (!buffer && write(2, "malloc fail\n", 12) + 2)
+		return (ft_free(map) != NULL);
 	i = 0;
-	bsq->s = 0;
 	while (i < bsq->x * bsq->y)
 	{
 		buffer[i % cap] = neighbours(buffer, map, bsq, i);
 		if (buffer[i % cap] > bsq->s)
 		{
 			bsq->s = buffer[i % cap];
-			bsq->i = i;
+			bsq->b = i;
 		}
 		i++;
 	}
-	print_square(map, *bsq);
+	print_square(map, *bsq, (char *)buffer);
 	free(buffer);
 	free(map);
 	return (bsq->s);
 }
 
-void	print_square(char *map, t_bsq bsq)
+void	print_square(char *map, t_bsq bsq, char *line)
 {
-	long	i;
+	long	r;
 
-	i = 0;
-	while (i < bsq.x * bsq.y)
-	{
-		if (ft_bit(map, i, 2))
-			write(1, &bsq.o, 1);
-		else if (insquare(bsq, i))
-			write(1, &bsq.f, 1);
-		else
-			write(1, &bsq.e, 1);
-		write(1, " ", 1);
-		i++;
-		if (!(i % bsq.x))
-			write(1, "\n", 1);
-	}
+	r = 0;
+	while (r < bsq.y)
+		print_line(map, &bsq, line, r++);
 }
 
 char	*get_map(int fd, t_bsq *bsq)
 {
 	char	*map;
-	int		cap;
+	long	cap;
 	char	c;
 
 	cap = 4;
 	map = get_rules(fd, bsq, &cap);
 	while (map && read(fd, &c, 1) == 1)
 	{
-		if ((bsq->i / 8) == cap && !bsq->x)
-			map = ft_realloc(map, bsq, &cap, 1);
 		if (c == '\n' && !bsq->x)
 			map = ft_realloc(map, bsq, &cap, 2);
-		if (c == '\n' && bsq->x && !(bsq->i % bsq->x) && bsq->s++ < bsq->y)
+		else if ((bsq->i / 8) == cap && !bsq->x)
+			map = ft_realloc(map, bsq, &cap, 1);
+		if (c == '\n' && bsq->x && !(bsq->i % bsq->x) && bsq->r++ < bsq->y)
 			bsq->i--;
 		else if (c == bsq->e || c == bsq->o)
 			ft_bit(map, bsq->i, c == bsq->o);
@@ -115,21 +103,21 @@ char	*get_map(int fd, t_bsq *bsq)
 	return (map);
 }
 
-char	*get_rules(int fd, t_bsq *bsq, int *cap)
+char	*get_rules(int fd, t_bsq *bsq, long *cap)
 {
 	char	*line;
-	int		i;
+	long	i;
 
 	line = (char *)malloc(*cap * sizeof(char));
-	if (!line && write(1, "malloc fail\n", 12) + 2)
-		return (NULL);
-	while (read(fd, &line[bsq->i], 1) == 1 && line[bsq->i] != '\n')
-		if (bsq->i++ == *cap)
+	while (line && read(fd, &line[bsq->i], 1) == 1 && line[bsq->i] != '\n')
+		if (++bsq->i == *cap)
 			line = ft_realloc(line, bsq, cap, 0);
 	i = 0;
-	while ('0' <= line[i] && line[i] <= '9' && i < bsq->i - 3)
+	while (line && '0' <= line[i] && line[i] <= '9' && i < bsq->i - 3
+		&& bsq->y <= 2147483647)
 		bsq->y = (bsq->y * 10) + line[i++] - '0';
-	if (bsq->i < 4 || !bsq->y || i != bsq->i - 3 || line[bsq->i] != '\n')
+	if (!line || bsq->i < 4 || i != bsq->i - 3 || !bsq->y
+		|| bsq->y > 2147483647 || line[bsq->i] != '\n')
 		return (ft_free(line));
 	while (i++ < bsq->i)
 		if (!(' ' <= line[i - 1] && line[i - 1] <= '~'))

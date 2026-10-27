@@ -17,6 +17,10 @@
 # include <stdlib.h>	//malloc, free
 # include <fcntl.h>		//open, close
 
+# ifndef SPACED
+#  define SPACED 0
+# endif
+
 typedef struct s_bsq
 {
 	long	x;
@@ -25,19 +29,21 @@ typedef struct s_bsq
 	char	o;
 	char	f;
 	long	i;
+	long	r;
+	long	b;
 	int		s;
 }	t_bsq;
 
 int		ft_bit(char *arr, long i, int val);
 void	*ft_free(void *ptr);
 
-char	*ft_realloc(char *src, t_bsq *bsq, int *cap, int step);
+char	*ft_realloc(char *src, t_bsq *bsq, long *cap, int step);
 int		neighbours(int *buffer, char *map, t_bsq *bsq, long i);
-int		insquare(t_bsq bsq, long i);
+void	print_line(char *map, t_bsq *bsq, char *line, long r);
 
 char	*get_map(int fd, t_bsq *bsq);
-char	*get_rules(int fd, t_bsq *bsq, int *cap);
+char	*get_rules(int fd, t_bsq *bsq, long *cap);
 int		ft_bsq(char *map, t_bsq *bsq);
-void	print_square(char *map, t_bsq bsq);
+void	print_square(char *map, t_bsq bsq, char *line);
 
 #endif	//bsq.h

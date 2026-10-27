@@ -38,10 +38,10 @@ void	*ft_free(void *ptr)
 	return (NULL);
 }
 
-char	*ft_realloc(char *src, t_bsq *bsq, int *cap, int step)
+char	*ft_realloc(char *src, t_bsq *bsq, long *cap, int step)
 {
 	char	*dst;
-	int		i;
+	long	i;
 
 	if (step == 2)
 		bsq->x = bsq->i;
@@ -50,8 +50,8 @@ char	*ft_realloc(char *src, t_bsq *bsq, int *cap, int step)
 	else
 		*cap *= 2;
 	dst = (char *)malloc(*cap * sizeof(char));
-	if (!dst && write(1, "malloc fail\n", 12) + 2)
-		return (NULL);
+	if (!dst && write(2, "malloc fail\n", 12) + 2)
+		return (ft_free(src));
 	i = 0;
 	if (step == 0)
 		bsq->i *= 8;
@@ -74,7 +74,7 @@ int	neighbours(int *buffer, char *map, t_bsq *bsq, long i)
 	cap = bsq->x + 2;
 	if (ft_bit(map, i, 2))
 		ret = 0;
-	else if (!((i / bsq->x) * (i % bsq->x)))
+	else if (i / bsq->x == 0 || i % bsq->x == 0)
 		ret = 1;
 	else
 	{
@@ -88,17 +88,28 @@ int	neighbours(int *buffer, char *map, t_bsq *bsq, long i)
 	return (ret);
 }
 
-int	insquare(t_bsq bsq, long i)
+void	print_line(char *map, t_bsq *bsq, char *line, long r)
 {
-	if (!bsq.s)
-		return (0);
-	if (!(i / bsq.x > (bsq.i / bsq.x) - bsq.s))
-		return (0);
-	if (!(i / bsq.x <= bsq.i / bsq.x))
-		return (0);
-	if (!(i % bsq.x > (bsq.i % bsq.x) - bsq.s))
-		return (0);
-	if (!(i % bsq.x <= bsq.i % bsq.x))
-		return (0);
-	return (1);
+	long	c;
+	long	k;
+	long	t;
+	long	l;
+
+	t = bsq->b / bsq->x - bsq->s + 1;
+	l = bsq->b % bsq->x - bsq->s + 1;
+	c = -1;
+	k = 0;
+	while (++c < bsq->x)
+	{
+		line[k] = bsq->e;
+		if (ft_bit(map, r * bsq->x + c, 2))
+			line[k] = bsq->o;
+		else if (r >= t && r < t + bsq->s && c >= l && c < l + bsq->s)
+			line[k] = bsq->f;
+		if (SPACED && c + 1 < bsq->x)
+			line[++k] = ' ';
+		k++;
+	}
+	line[k] = '\n';
+	write(1, line, k + 1);
 }

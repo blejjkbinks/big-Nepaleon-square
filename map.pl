@@ -2,80 +2,73 @@
 use warnings;
 use strict;
 
-my $def_x = 80;
-my $def_y = 40;
-my $scale = 20;
-my $def_dens = int(($def_x + $def_y) / $scale);
-my $def_emp = '.';
-my $def_obs = 'o';
-my $def_sqr = 'x';
+# usage: ./map.pl [width] [height] [density%] [empty] [obstacle] [full]
+#   numbers: 1 = density, 2 = width height, 3 = width height density
+#   chars:   1 = full,    2 = empty obstacle, 3 = empty obstacle full
 
-my @dim = ();
-my @chr = ();
-my $dim_c = 0;
-my $chr_c = 0;
+my ($x, $y, $pct) = (80, 40, 7);
+my ($emp, $obs, $sqr) = ('.', 'o', 'x');
 
-my ($x, $y, $dens, $emp, $obs, $sqr);
+sub usage
+{
+	my ($err) = @_;
+	print STDERR "error: $err\n" if $err;
+	print STDERR "usage: $0 [width] [height] [density%] [empty] [obstacle] [full]\n";
+	exit($err ? 1 : 0);
+}
 
+my (@num, @chr);
 foreach my $arg (@ARGV)
 {
-	if (length($arg) == 1) 
+	usage() if $arg eq '-h' || $arg eq '--help';
+	if ($arg =~ /^\d+$/)
+	{
+		push @num, $arg;
+	}
+	elsif ($arg =~ /^[ -~]$/)
 	{
 		push @chr, $arg;
-		$chr_c++;
 	}
-	elsif ($arg =~ /^\d+$/ || $arg =~ /^-\d+$/)
+	else
 	{
-		push @dim, abs($arg);
-		$dim_c++;
+		usage("'$arg' is neither a number nor a printable character");
 	}
 }
+usage("too many numbers") if @num > 3;
+usage("too many characters") if @chr > 3;
 
-if ($dim_c == 0 || $dim_c == 1 || $dim_c > 3)
+if (@num == 1)
 {
-	$x = $def_x;
-	$y = $def_y;
-	$dens = ($dim_c == 1) ? $dim[0] : $def_dens;
+	$pct = $num[0];
 }
-elsif ($dim_c == 2)
+elsif (@num >= 2)
 {
-	($x, $y) = @dim;
-	$dens = (($x + $y) < $scale) ? 1 : int(($x + $y) / $scale);
-} 
-elsif ($dim_c == 3)
-{
-	($x, $y, $dens) = @dim;
+	($x, $y) = @num;
+	$pct = $num[2] if @num == 3;
 }
 
-if ($chr_c == 0 || $chr_c == 1 || $chr_c > 3)
+if (@chr == 1)
 {
-	$emp = $def_emp;
-	$obs = $def_obs;
-	$sqr = ($chr_c == 1) ? $chr[0] : $def_sqr;
+	$sqr = $chr[0];
 }
-elsif ($chr_c == 2)
+elsif (@chr >= 2)
 {
 	($emp, $obs) = @chr;
-	$sqr = $def_sqr;
+	$sqr = $chr[2] if @chr == 3;
 }
-elsif ($chr_c == 3)
-{
-	($emp, $obs, $sqr) = @chr;
-}
+
+usage("width and height must be at least 1") if $x < 1 || $y < 1;
+usage("density must be between 0 and 100") if $pct > 100;
+usage("characters must all be different")
+	if $emp eq $obs || $emp eq $sqr || $obs eq $sqr;
 
 print "$y$emp$obs$sqr\n";
 for (my $i = 0; $i < $y; $i++)
 {
+	my $line = '';
 	for (my $j = 0; $j < $x; $j++)
 	{
-		if (int(rand($y) * 2) < $dens)
-		{
-			print "$obs";
-		}
-		else
-		{
-			print "$emp";
-		}
+		$line .= (rand(100) < $pct) ? $obs : $emp;
 	}
-	print "\n";
+	print "$line\n";
 }
