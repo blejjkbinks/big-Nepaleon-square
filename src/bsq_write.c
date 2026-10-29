@@ -12,19 +12,21 @@
 
 #include "bsq.h"
 
-void	alloc_map(t_bsq *bsq)
+char	*ft_grow(char *src, long len, long *cap, long size)
 {
-	long	c;
+	char	*dst;
+	long	i;
 
-	if (bsq->err)
-		return ;
-	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
-	bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
-	if (!bsq->map || !bsq->row)
-		bsq->err = write(2, "malloc fail\n", 12);
-	c = -1;
-	while (!bsq->err && ++c <= bsq->x)
-		bsq->row[c] = 0;
+	*cap = size;
+	dst = (char *)malloc(size);
+	if (!dst && write(2, "malloc fail\n", 12))
+		free(src);
+	i = -1;
+	while (dst && ++i < len)
+		dst[i] = src[i];
+	if (dst)
+		free(src);
+	return (dst);
 }
 
 void	solve_cell(t_bsq *bsq, int obstacle)
@@ -57,8 +59,6 @@ void	print_square(t_bsq *bsq)
 {
 	long	r;
 
-	if (bsq->err && write(2, "map error\n", 10))
-		return ;
 	r = -1;
 	while (++r < bsq->y)
 		print_line(bsq, (char *)bsq->row, r);

@@ -9,13 +9,15 @@
 **     cc -Wall -Wextra -Werror bsq_topdown.c -o bsq_topdown
 **     ./bsq_topdown map
 **
-** the steps, for each map (each one does nothing once err is set):
+** for each map, main calls get_map, then prints the square or "map error".
+** get_map runs the reading steps (each one does nothing once err is set):
 **     1. read_rules       the rules line         -> y, empty, obstacle, full
 **     2. read_first_line  the first line         -> x
-**     3. alloc_map        the bitmap and the row of ints, at their exact size
+**     3. (in get_map)     allocate the bitmap and the row of ints
 **     4. read_map         every line: each cell is stored as a bit and solved
 **                         right away                -> the biggest square
-**     5. print_square     the map with the square, or "map error"
+** then main:
+**     5. print_square     the map with the square
 */
 
 #include <unistd.h>
@@ -31,7 +33,6 @@
 
 typedef struct s_bsq
 {
-	int		fd;		//the map's file descriptor
 	int		err;	//set by a step that fails, the next steps do nothing
 	char	*buf;	//read buffer: the first line, then chunks of cap bytes
 	long	len;	//bytes in buf
@@ -50,11 +51,11 @@ typedef struct s_bsq
 	int		d;		//diag, the top-left neighbour of the current cell
 }	t_bsq;
 
-void	read_rules(t_bsq *bsq);
-void	read_first_line(t_bsq *bsq);
-void	read_map(t_bsq *bsq);
+char	*get_map(int fd, t_bsq *bsq);
+void	read_rules(int fd, t_bsq *bsq);
+void	read_first_line(int fd, t_bsq *bsq);
+void	read_map(int fd, t_bsq *bsq);
 char	*ft_grow(char *src, long len, long *cap, long size);
-void	alloc_map(t_bsq *bsq);
 void	solve_cell(t_bsq *bsq, int obstacle);
 void	print_square(t_bsq *bsq);
 void	print_line(t_bsq *bsq, char *line, long r);
@@ -67,22 +68,25 @@ void	bit_set(char *bitmap, long i, int value);
 int	main(int argc, char **argv)
 {
 	t_bsq	bsq;
+	char	*map;
+	int		fd;
 	int		i;
 
+	fd = 0;
 	i = 1;
 	while (i < argc || (argc == 1 && i == 1))
 	{
 		bsq = (t_bsq){0};
 		if (argc > 1)
-			bsq.fd = open(argv[i], O_RDONLY);
-		read_rules(&bsq);
-		read_first_line(&bsq);
-		alloc_map(&bsq);
-		read_map(&bsq);
-		print_square(&bsq);
-		close(bsq.fd);
-		free(bsq.buf);
-		free(bsq.map);
+			fd = open(argv[i], O_RDONLY);
+		// read and solve the map, NULL if it's invalid
+		map = get_map(fd, &bsq);
+		close(fd);
+		if (map)
+			print_square(&bsq);
+		else
+			write(2, "map error\n", 10);
+		free(map);
 		free(bsq.row);
 		// a line break between maps
 		if (argc > 2 && i < argc - 1)
@@ -93,12 +97,55 @@ int	main(int argc, char **argv)
 }
 
 /*
+** steps 1 to 4. returns the bitmap, solved, or NULL if anything failed.
+** the read buffer is freed here, the int row is freed by main: print_square
+** still needs it as its line buffer
+*/
+char	*get_map(int fd, t_bsq *bsq)
+{
+	long	c;
+
+	read_rules(fd, bsq);
+	read_first_line(fd, bsq);
+
+	// 3. we know x and y now: allocate the bitmap once, at its exact size,
+	//    and the int row. the row starts all 0: row[0] is the column left of
+	//    the map, and the rest is the row above the map, so the edges need
+	//    no special case
+	if (!bsq->err)
+	{
+		bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
+		bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
+		if (!bsq->map || !bsq->row)
+		{
+			write(2, "malloc fail\n", 12);
+			bsq->err = 1;
+		}
+	}
+	c = 0;
+	while (!bsq->err && c <= bsq->x)
+	{
+		bsq->row[c] = 0;
+		c++;
+	}
+
+	read_map(fd, bsq);
+	free(bsq->buf);
+	if (bsq->err)
+	{
+		free(bsq->map);
+		return (NULL);
+	}
+	return (bsq->map);
+}
+
+/*
 ** 1. the rules line: digits, then the empty, obstacle and full characters.
 ** it's at most 14 bytes: 10 digits for INT_MAX, 3 characters and '\n'.
 ** it's read one byte at a time into a stack array, so we never read past
 ** its '\n'
 */
-void	read_rules(t_bsq *bsq)
+void	read_rules(int fd, t_bsq *bsq)
 {
 	char	l[14];
 	long	n;
@@ -109,7 +156,7 @@ void	read_rules(t_bsq *bsq)
 	n = 0;
 	while (1)
 	{
-		if (read(bsq->fd, &l[n], 1) != 1)
+		if (read(fd, &l[n], 1) != 1)
 			return ;
 		if (l[n] == '\n')
 			break ;
@@ -154,7 +201,7 @@ void	read_rules(t_bsq *bsq)
 ** the buffer keeps this size for the rest of the map: every later read()
 ** asks for about one line
 */
-void	read_first_line(t_bsq *bsq)
+void	read_first_line(int fd, t_bsq *bsq)
 {
 	long	n;
 	long	k;
@@ -165,7 +212,7 @@ void	read_first_line(t_bsq *bsq)
 	k = 0;
 	while (bsq->buf)
 	{
-		n = read(bsq->fd, bsq->buf + bsq->len, bsq->cap - bsq->len);
+		n = read(fd, bsq->buf + bsq->len, bsq->cap - bsq->len);
 		if (n <= 0)
 			break ;
 		bsq->len += n;
@@ -197,7 +244,7 @@ void	read_first_line(t_bsq *bsq)
 ** a line that is too long fails here, before anything is written past the
 ** bitmap. bytes after the last row are ignored
 */
-void	read_map(t_bsq *bsq)
+void	read_map(int fd, t_bsq *bsq)
 {
 	long	k;
 	long	row_end;
@@ -211,7 +258,7 @@ void	read_map(t_bsq *bsq)
 		// buffer used up: read the next chunk
 		if (k == bsq->len)
 		{
-			bsq->len = read(bsq->fd, bsq->buf, bsq->cap);
+			bsq->len = read(fd, bsq->buf, bsq->cap);
 			k = 0;
 			if (bsq->len <= 0)
 			{
@@ -262,33 +309,6 @@ char	*ft_grow(char *src, long len, long *cap, long size)
 }
 
 /*
-** 3. we know x and y now: allocate the bitmap once, at its exact size, and
-** the int row. the row starts all 0: row[0] is the column left of the map,
-** and the rest is the row above the map, so the edges need no special case
-*/
-void	alloc_map(t_bsq *bsq)
-{
-	long	c;
-
-	if (bsq->err)
-		return ;
-	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
-	bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
-	if (!bsq->map || !bsq->row)
-	{
-		write(2, "malloc fail\n", 12);
-		bsq->err = 1;
-		return ;
-	}
-	c = 0;
-	while (c <= bsq->x)
-	{
-		bsq->row[c] = 0;
-		c++;
-	}
-}
-
-/*
 ** 4. one cell, cell number bsq->i, in column c of row bsq->r.
 ** column c is at row[c + 1]. before we overwrite it, row[c + 1] still holds
 ** the row above (top), row[c] already holds the current row (left), and d is
@@ -329,18 +349,13 @@ void	solve_cell(t_bsq *bsq, int obstacle)
 }
 
 /*
-** 5. the map with the square, or the error.
+** 5. the map with the square.
 ** the int row isn't needed anymore, so its memory is the line buffer
 */
 void	print_square(t_bsq *bsq)
 {
 	long	r;
 
-	if (bsq->err)
-	{
-		write(2, "map error\n", 10);
-		return ;
-	}
 	r = 0;
 	while (r < bsq->y)
 	{

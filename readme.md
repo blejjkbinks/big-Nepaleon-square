@@ -87,17 +87,25 @@ each value is calculated like this:
 
 
 ### the flow
-`main` reads like the program runs. for each map, five steps, one function each:
+`main` reads like the program runs. for each map:
 ```c
-		read_rules(&bsq);		//y, and the empty, obstacle and full characters
-		read_first_line(&bsq);	//x
-		alloc_map(&bsq);		//the bitmap and the row of ints, at their exact size
-		read_map(&bsq);			//every line: each cell is stored as a bit and solved
-		print_square(&bsq);		//the map with the square, or "map error"
+		map = get_map(fd, &bsq);	//read and solve, NULL if the map is invalid
+		close(fd);
+		if (map)
+			print_square(&bsq);		//the map with the square
+		else
+			write(2, "map error\n", 10);
 ```
-`src/bsq_read.c` holds `main` and the reading, `src/bsq_write.c` holds what writes: the bits, the row of ints, and the output.
+and `get_map` runs the reading steps, one function each:
+```c
+	read_rules(fd, bsq);		//y, and the empty, obstacle and full characters
+	read_first_line(fd, bsq);	//x
+	...							//allocate the bitmap and the row of ints, at their exact size
+	read_map(fd, bsq);			//every line: each cell is stored as a bit and solved
+```
 the map is solved while it's read: each cell goes into the row of ints as soon as it's checked, so there is no second pass over the bitmap, only the one to print it.  
-`t_bsq` carries everything between the steps. when a step fails it sets `bsq.err`, and every step after it does nothing, except `print_square`, which prints `map error`. so `main` needs no `if`s, and still never solves a broken map.
+`t_bsq` carries everything between the steps. when a step fails it sets `bsq->err`, and every step after it does nothing, so `get_map` needs no `if` around them, and returns `NULL`.  
+`src/bsq_read.c` holds `main` and the reading, `src/bsq_write.c` holds what writes: the bits, the row of ints, the output, and growing the read buffer.
 
 ### squeezed tiny memory footprint
 for a map of dimensions $x\times y$,  
@@ -347,8 +355,8 @@ every one of these is real, from `src/`. each one keeps a function under 25 line
 | trick | what it saves | honest version |
 |---|---|---|
 | `bsq->err = write(2, "malloc fail\n", 12);` | `write` returns `12`, or `-1` if it fails: never `0`, so printing the message and setting the error flag is one line | `write(2, "malloc fail\n", 12);`<br>`bsq->err = 1;` |
-| `if (bsq->err && write(2, "map error\n", 10))`<br>`return ;` | same idea, the message fits inside the condition: 2 lines | `if (bsq->err)`<br>`{`<br>`write(2, "map error\n", 10);`<br>`return ;`<br>`}` |
-| every step starts with `if (bsq->err) return ;` | `main` calls the five steps one after the other, with no `if` around them | `if (read_rules(&bsq) && read_first_line(&bsq) && ...)`, or one `if` per step |
+| `if (!dst && write(2, "malloc fail\n", 12))`<br>`free(src);` | same idea, the message fits inside the condition | `if (!dst)`<br>`{`<br>`write(2, "malloc fail\n", 12);`<br>`free(src);`<br>`}` |
+| every reading step starts with `if (bsq->err) return ;` | `get_map` calls the steps one after the other, with no `if` around them | `if (read_rules(fd, bsq) && read_first_line(fd, bsq) && ...)`, or one `if` per step |
 | `while (++c < bsq->x)` with `c = -1;` before the loop | the `c++;` line at the end of the loop body | `c = 0;`<br>`while (c < bsq->x)`<br>`{`<br>`...`<br>`c++;`<br>`}` |
 | `while (k == 1 && l[n] != '\n' && ++n < 14)`<br>`k = read(bsq->fd, &l[n], 1);` | the end-of-file check, the end-of-line check and the counter all live in the loop condition, so the body is one line and needs no braces | a `while (n < 14)` loop with a `read`, then two `if`s with a `break`, then `n++` |
 | `k = (k == 1 && n < 14 && n > 3 && i == n - 3);`<br>`bsq->e = l[(n - 3) * k];` | `k` is `1` when the rules line has the right shape, `0` otherwise. multiplying by it turns a bad index into `0`, so the characters are read without going outside the array, and without an `if`/`return` | `if (n < 4 \|\| ...)`<br>`{`<br>`bsq->err = 1;`<br>`return ;`<br>`}`<br>`bsq->e = l[n - 3];` |

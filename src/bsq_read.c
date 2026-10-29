@@ -15,22 +15,24 @@
 int	main(int argc, char **argv)
 {
 	t_bsq	bsq;
+	char	*map;
+	int		fd;
 	int		i;
 
+	fd = 0;
 	i = 0;
 	while (++i < argc || (argc == 1 && i == 1))
 	{
 		bsq = (t_bsq){0};
 		if (argc > 1)
-			bsq.fd = open(argv[i], O_RDONLY);
-		read_rules(&bsq);
-		read_first_line(&bsq);
-		alloc_map(&bsq);
-		read_map(&bsq);
-		print_square(&bsq);
-		close(bsq.fd);
-		free(bsq.buf);
-		free(bsq.map);
+			fd = open(argv[i], O_RDONLY);
+		map = get_map(fd, &bsq);
+		close(fd);
+		if (map)
+			print_square(&bsq);
+		else
+			write(2, "map error\n", 10);
+		free(map);
 		free(bsq.row);
 		if (argc > 2 && i < argc - 1)
 			write(1, "\n", 1);
@@ -38,7 +40,30 @@ int	main(int argc, char **argv)
 	return (0);
 }
 
-void	read_rules(t_bsq *bsq)
+char	*get_map(int fd, t_bsq *bsq)
+{
+	long	c;
+
+	read_rules(fd, bsq);
+	read_first_line(fd, bsq);
+	if (!bsq->err)
+		bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
+	if (!bsq->err)
+		bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
+	if (!bsq->err && (!bsq->map || !bsq->row))
+		bsq->err = write(2, "malloc fail\n", 12);
+	c = -1;
+	while (!bsq->err && ++c <= bsq->x)
+		bsq->row[c] = 0;
+	read_map(fd, bsq);
+	free(bsq->buf);
+	if (!bsq->err)
+		return (bsq->map);
+	free(bsq->map);
+	return (NULL);
+}
+
+void	read_rules(int fd, t_bsq *bsq)
 {
 	char	l[14];
 	long	n;
@@ -46,9 +71,9 @@ void	read_rules(t_bsq *bsq)
 	long	i;
 
 	n = 0;
-	k = read(bsq->fd, &l[0], 1);
+	k = read(fd, &l[0], 1);
 	while (k == 1 && l[n] != '\n' && ++n < 14)
-		k = read(bsq->fd, &l[n], 1);
+		k = read(fd, &l[n], 1);
 	i = 0;
 	while (i < n - 3 && '0' <= l[i] && l[i] <= '9')
 		bsq->y = bsq->y * 10 + l[i++] - '0';
@@ -62,7 +87,7 @@ void	read_rules(t_bsq *bsq)
 			|| bsq->e == bsq->o || bsq->e == bsq->f || bsq->o == bsq->f);
 }
 
-void	read_first_line(t_bsq *bsq)
+void	read_first_line(int fd, t_bsq *bsq)
 {
 	long	n;
 	long	k;
@@ -74,7 +99,7 @@ void	read_first_line(t_bsq *bsq)
 	n = 1;
 	while (bsq->buf && k == bsq->len && n > 0)
 	{
-		n = read(bsq->fd, bsq->buf + bsq->len, bsq->cap - bsq->len);
+		n = read(fd, bsq->buf + bsq->len, bsq->cap - bsq->len);
 		if (n > 0)
 			bsq->len += n;
 		while (k < bsq->len && bsq->buf[k] != '\n')
@@ -87,7 +112,7 @@ void	read_first_line(t_bsq *bsq)
 	bsq->err = (!bsq->buf || k == bsq->len || k == 0);
 }
 
-void	read_map(t_bsq *bsq)
+void	read_map(int fd, t_bsq *bsq)
 {
 	long	k;
 
@@ -96,7 +121,7 @@ void	read_map(t_bsq *bsq)
 	{
 		if (++k == bsq->len)
 		{
-			bsq->len = read(bsq->fd, bsq->buf, bsq->cap);
+			bsq->len = read(fd, bsq->buf, bsq->cap);
 			k = 0;
 		}
 		if (bsq->len <= 0)
@@ -109,21 +134,4 @@ void	read_map(t_bsq *bsq)
 		else
 			bsq->err = 1;
 	}
-}
-
-char	*ft_grow(char *src, long len, long *cap, long size)
-{
-	char	*dst;
-	long	i;
-
-	*cap = size;
-	dst = (char *)malloc(size);
-	if (!dst && write(2, "malloc fail\n", 12))
-		free(src);
-	i = -1;
-	while (dst && ++i < len)
-		dst[i] = src[i];
-	if (dst)
-		free(src);
-	return (dst);
 }
