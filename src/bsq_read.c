@@ -71,13 +71,13 @@ void	read_rules(int fd, t_bsq *bsq)
 	long	i;
 
 	n = 0;
-	k = read(fd, &l[0], 1);
-	while (k == 1 && l[n] != '\n' && ++n < 14)
-		k = read(fd, &l[n], 1);
+	k = 0;
+	while (n < 14 && read(fd, &l[n], 1) == 1 && ++k && l[n] != '\n')
+		n++;
 	i = 0;
 	while (i < n - 3 && '0' <= l[i] && l[i] <= '9')
 		bsq->y = bsq->y * 10 + l[i++] - '0';
-	k = (k == 1 && n < 14 && n > 3 && i == n - 3);
+	k = (k == n + 1 && n > 3 && i == n - 3);
 	while (k && i < n && ' ' <= l[i] && l[i] <= '~')
 		i++;
 	bsq->e = l[(n - 3) * k];
