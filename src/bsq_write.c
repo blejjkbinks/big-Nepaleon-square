@@ -87,6 +87,8 @@ void	print_line(t_bsq *bsq, char *line, long r)
 	write(1, line, bsq->x * (1 + SPACED) - SPACED + 1);
 }
 
+//cell i is bit i % 8 of byte i / 8. val 0 clears it, 1 sets it,
+//anything else only reads it. returns the bit, after the change
 int	ft_bit(char *arr, long i, int val)
 {
 	if (val == 0)
