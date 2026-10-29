@@ -44,8 +44,8 @@ and my own rule: everything fits in 2 `.c` files, so 10 functions at most, `main
 ```
 	% norminette src
 bsq.h: OK!
-norminette.c: OK!
-bsq.c: OK!
+bsq_write.c: OK!
+bsq_read.c: OK!
 	% norminette -v
 norminette 3.3.60
 ```
@@ -91,10 +91,12 @@ each value is calculated like this:
 ```c
 		read_rules(&bsq);		//y, and the empty, obstacle and full characters
 		read_first_line(&bsq);	//x
-		read_map(&bsq);			//every line, stored as bits
-		solve(&bsq);			//one row of ints, finds the biggest square
+		alloc_map(&bsq);		//the bitmap and the row of ints, at their exact size
+		read_map(&bsq);			//every line: each cell is stored as a bit and solved
 		print_square(&bsq);		//the map with the square, or "map error"
 ```
+`src/bsq_read.c` holds `main` and the reading, `src/bsq_write.c` holds what writes: the bits, the row of ints, and the output.
+the map is solved while it's read: each cell goes into the row of ints as soon as it's checked, so there is no second pass over the bitmap, only the one to print it.  
 `t_bsq` carries everything between the steps. when a step fails it sets `bsq.err`, and every step after it does nothing, except `print_square`, which prints `map error`. so `main` needs no `if`s, and still never solves a broken map.
 
 ### squeezed tiny memory footprint
@@ -104,7 +106,7 @@ but we can do much better!!:
 * because we keep track of the map's dimension in a separate `t_bsq` variable, we can store the map in a one-dimension `char` array, which means simpler allocation, saving space that would be needed for multiple pointers, and more efficient accessing.  
 * when reading the map, the map itself is allocated exactly once, at its exact size:  
 	* the "rules line" is at most 14 characters (10 digits for `INT_MAX`, 3 characters, `\n`), so it's read into a 14 `char` array on the stack, one byte at a time. it's never more than 14 `read`s, and it never reads past the `\n`
-	* the first line of the map is read in chunks into a buffer that starts at `64 bytes` and doubles until the first `\n` fits. this is the only buffer that grows, and it's only bytes, so growing it is a simple copy
+	* the first line of the map is read in chunks into a buffer that starts at `BUF_START` (64) bytes and grows by `BUF_GROW` (2) until the first `\n` fits. this is the only buffer that grows, and it's only bytes, so growing it is a simple copy
 	* at the end of the first line we know $x$, and $y$ was in the rules line, so we can allocate the exact space for the whole map
 	> this is really tricky because $y$ is given, but $x$ is not, until we're done with the whole first line  
 	* the rest of the map is read with that same buffer, so each `read` asks for about one line. the number of cells and rows read so far decides where each `\n` must be, so it doesn't matter where a chunk ends, and a line that's too long can never write past the map
@@ -350,6 +352,6 @@ every one of these is real, from `src/`. each one keeps a function under 25 line
 | `while (++c < bsq->x)` with `c = -1;` before the loop | the `c++;` line at the end of the loop body | `c = 0;`<br>`while (c < bsq->x)`<br>`{`<br>`...`<br>`c++;`<br>`}` |
 | `while (k == 1 && l[n] != '\n' && ++n < 14)`<br>`k = read(bsq->fd, &l[n], 1);` | the end-of-file check, the end-of-line check and the counter all live in the loop condition, so the body is one line and needs no braces | a `while (n < 14)` loop with a `read`, then two `if`s with a `break`, then `n++` |
 | `k = (k == 1 && n < 14 && n > 3 && i == n - 3);`<br>`bsq->e = l[(n - 3) * k];` | `k` is `1` when the rules line has the right shape, `0` otherwise. multiplying by it turns a bad index into `0`, so the characters are read without going outside the array, and without an `if`/`return` | `if (n < 4 \|\| ...)`<br>`{`<br>`bsq->err = 1;`<br>`return ;`<br>`}`<br>`bsq->e = l[n - 3];` |
-| `row[c + 1] = (row[c + 1] + 1) * !ft_bit(bsq->map, i, 2);` | multiplying by `0` or `1` replaces an `if`/`else`: 3 lines | `if (ft_bit(bsq->map, i, 2))`<br>`row[c + 1] = 0;`<br>`else`<br>`row[c + 1]++;` |
+| `row[c + 1] = (row[c + 1] + 1) * !obstacle;` | multiplying by `0` or `1` replaces an `if`/`else`: 3 lines | `if (obstacle)`<br>`row[c + 1] = 0;`<br>`else`<br>`row[c + 1]++;` |
 | the `t_bsq` struct carries the map's state everywhere | one pointer instead of up to 9 parameters (the limit is 4) and instead of 9 local variables (the limit is 5) | separate variables and parameters |
 | `ft_bit(map, i, 0)`, `ft_bit(map, i, 1)`, `ft_bit(map, i, 2)`: clear, set or read one bit | one function slot instead of three (the limit is 5 per file, 10 in total) | `bit_clear`, `bit_set`, `bit_get` |

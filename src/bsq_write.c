@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   norminette.c                                       :+:      :+:    :+:   */
+/*   bsq_write.c                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: rdomange <romitdomange@gmail.com>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -12,49 +12,45 @@
 
 #include "bsq.h"
 
-void	solve(t_bsq *bsq)
+void	alloc_map(t_bsq *bsq)
 {
-	long	r;
+	long	c;
 
 	if (bsq->err)
 		return ;
+	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
 	bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
-	if (!bsq->row)
+	if (!bsq->map || !bsq->row)
 		bsq->err = write(2, "malloc fail\n", 12);
-	r = -1;
-	while (bsq->row && ++r <= bsq->x)
-		bsq->row[r] = 0;
-	r = -1;
-	while (bsq->row && ++r < bsq->y)
-		solve_row(bsq, r);
+	c = -1;
+	while (!bsq->err && ++c <= bsq->x)
+		bsq->row[c] = 0;
 }
 
-void	solve_row(t_bsq *bsq, long r)
+void	solve_cell(t_bsq *bsq, int obstacle)
 {
 	long	c;
-	int		diag;
 	int		top;
 	int		*row;
 
 	row = bsq->row;
-	c = -1;
-	diag = 0;
-	while (++c < bsq->x)
+	c = bsq->i - bsq->r * bsq->x;
+	if (c == 0)
+		bsq->d = 0;
+	top = row[c + 1];
+	row[c + 1] = row[c];
+	if (top < row[c + 1])
+		row[c + 1] = top;
+	if (bsq->d < row[c + 1])
+		row[c + 1] = bsq->d;
+	row[c + 1] = (row[c + 1] + 1) * !obstacle;
+	bsq->d = top;
+	if (row[c + 1] > bsq->s)
 	{
-		top = row[c + 1];
-		row[c + 1] = row[c];
-		if (top < row[c + 1])
-			row[c + 1] = top;
-		if (diag < row[c + 1])
-			row[c + 1] = diag;
-		row[c + 1] = (row[c + 1] + 1) * !ft_bit(bsq->map, r * bsq->x + c, 2);
-		diag = top;
-		if (row[c + 1] > bsq->s)
-		{
-			bsq->s = row[c + 1];
-			bsq->b = r * bsq->x + c;
-		}
+		bsq->s = row[c + 1];
+		bsq->b = bsq->i;
 	}
+	ft_bit(bsq->map, bsq->i++, obstacle);
 }
 
 void	print_square(t_bsq *bsq)

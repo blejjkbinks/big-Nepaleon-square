@@ -17,6 +17,9 @@
 # include <stdlib.h>	//malloc, free
 # include <fcntl.h>		//open, close
 
+# define BUF_START 64	//first size of the read buffer, in bytes
+# define BUF_GROW 2		//the read buffer grows by this factor
+
 # ifndef SPACED
 #  define SPACED 0		//1 prints a space between cells: make spaced
 # endif
@@ -39,6 +42,7 @@ typedef struct s_bsq
 	long	r;		//rows read so far
 	long	b;		//index of the bottom-right cell of the biggest square
 	int		s;		//size of the biggest square
+	int		d;		//diag, the top-left neighbour of the current cell
 }	t_bsq;
 
 void	read_rules(t_bsq *bsq);
@@ -46,8 +50,8 @@ void	read_first_line(t_bsq *bsq);
 void	read_map(t_bsq *bsq);
 char	*ft_grow(char *src, long len, long *cap, long size);
 
-void	solve(t_bsq *bsq);
-void	solve_row(t_bsq *bsq, long r);
+void	alloc_map(t_bsq *bsq);
+void	solve_cell(t_bsq *bsq, int obstacle);
 void	print_square(t_bsq *bsq);
 void	print_line(t_bsq *bsq, char *line, long r);
 int		ft_bit(char *arr, long i, int val);

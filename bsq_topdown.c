@@ -12,14 +12,18 @@
 ** the steps, for each map (each one does nothing once err is set):
 **     1. read_rules       the rules line         -> y, empty, obstacle, full
 **     2. read_first_line  the first line         -> x
-**     3. read_map         every line, as bits    -> the bitmap
-**     4. solve            one row of ints        -> the biggest square
+**     3. alloc_map        the bitmap and the row of ints, at their exact size
+**     4. read_map         every line: each cell is stored as a bit and solved
+**                         right away                -> the biggest square
 **     5. print_square     the map with the square, or "map error"
 */
 
 #include <unistd.h>
 #include <stdlib.h>
 #include <fcntl.h>
+
+#define BUF_START 64	//first size of the read buffer, in bytes
+#define BUF_GROW 2		//the read buffer grows by this factor
 
 #ifndef SPACED
 # define SPACED 0		//1 prints a space between cells: make spaced
@@ -43,14 +47,15 @@ typedef struct s_bsq
 	long	r;		//rows read so far
 	long	b;		//index of the bottom-right cell of the biggest square
 	int		s;		//size of the biggest square
+	int		d;		//diag, the top-left neighbour of the current cell
 }	t_bsq;
 
 void	read_rules(t_bsq *bsq);
 void	read_first_line(t_bsq *bsq);
 void	read_map(t_bsq *bsq);
 char	*ft_grow(char *src, long len, long *cap, long size);
-void	solve(t_bsq *bsq);
-void	solve_row(t_bsq *bsq, long r);
+void	alloc_map(t_bsq *bsq);
+void	solve_cell(t_bsq *bsq, int obstacle);
 void	print_square(t_bsq *bsq);
 void	print_line(t_bsq *bsq, char *line, long r);
 int		bit_get(char *bitmap, long i);
@@ -72,8 +77,8 @@ int	main(int argc, char **argv)
 			bsq.fd = open(argv[i], O_RDONLY);
 		read_rules(&bsq);
 		read_first_line(&bsq);
+		alloc_map(&bsq);
 		read_map(&bsq);
-		solve(&bsq);
 		print_square(&bsq);
 		close(bsq.fd);
 		free(bsq.buf);
@@ -142,7 +147,8 @@ void	read_rules(t_bsq *bsq)
 
 /*
 ** 2. the first line: we don't know x until we find its '\n'.
-** read in chunks into a buffer that starts at 64 bytes and doubles until the
+** read in chunks into a buffer that starts at BUF_START bytes and grows by
+** BUF_GROW until the
 ** '\n' is in it. buf then holds the first line, and maybe the start of the
 ** next lines, which read_map parses from the start of buf.
 ** the buffer keeps this size for the rest of the map: every later read()
@@ -155,7 +161,7 @@ void	read_first_line(t_bsq *bsq)
 
 	if (bsq->err)
 		return ;
-	bsq->buf = ft_grow(NULL, 0, &bsq->cap, 64);
+	bsq->buf = ft_grow(NULL, 0, &bsq->cap, BUF_START);
 	k = 0;
 	while (bsq->buf)
 	{
@@ -170,9 +176,10 @@ void	read_first_line(t_bsq *bsq)
 		if (k < bsq->len)
 			break ;
 
-		// not found and the buffer is full: double it
+		// not found and the buffer is full: grow it
 		if (bsq->len == bsq->cap)
-			bsq->buf = ft_grow(bsq->buf, bsq->len, &bsq->cap, bsq->cap * 2);
+			bsq->buf = ft_grow(bsq->buf, bsq->len, &bsq->cap,
+					bsq->cap * BUF_GROW);
 	}
 	bsq->x = k;
 
@@ -182,9 +189,9 @@ void	read_first_line(t_bsq *bsq)
 }
 
 /*
-** 3. allocate the bitmap once, at its exact size: we know x and y now.
-** then check every byte. bsq->i (cells read) and bsq->r (rows read) say
-** what the next byte must be, so it doesn't matter where a chunk ends:
+** 4. check every byte, and solve each cell as soon as it's read.
+** bsq->i (cells read) and bsq->r (rows read) say what the next byte must be,
+** so it doesn't matter where a chunk ends:
 **     - after x cells in the row: '\n'
 **     - before that: the empty or the obstacle character
 ** a line that is too long fails here, before anything is written past the
@@ -198,13 +205,6 @@ void	read_map(t_bsq *bsq)
 
 	if (bsq->err)
 		return ;
-	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
-	if (!bsq->map)
-	{
-		write(2, "malloc fail\n", 12);
-		bsq->err = 1;
-		return ;
-	}
 	k = 0;
 	while (bsq->r < bsq->y)
 	{
@@ -224,10 +224,7 @@ void	read_map(t_bsq *bsq)
 		if (bsq->i == row_end && c == '\n')
 			bsq->r++;
 		else if (bsq->i < row_end && (c == bsq->e || c == bsq->o))
-		{
-			bit_set(bsq->map, bsq->i, c == bsq->o);
-			bsq->i++;
-		}
+			solve_cell(bsq, c == bsq->o);
 		else
 		{
 			bsq->err = 1;
@@ -265,19 +262,19 @@ char	*ft_grow(char *src, long len, long *cap, long size)
 }
 
 /*
-** 4. the int row starts all 0: row[0] is the column left of the map, and
-** the rest is the row above the map, so the edges need no special case.
-** then solve the map one row at a time
+** 3. we know x and y now: allocate the bitmap once, at its exact size, and
+** the int row. the row starts all 0: row[0] is the column left of the map,
+** and the rest is the row above the map, so the edges need no special case
 */
-void	solve(t_bsq *bsq)
+void	alloc_map(t_bsq *bsq)
 {
-	long	r;
 	long	c;
 
 	if (bsq->err)
 		return ;
+	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
 	bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
-	if (!bsq->row)
+	if (!bsq->map || !bsq->row)
 	{
 		write(2, "malloc fail\n", 12);
 		bsq->err = 1;
@@ -289,53 +286,46 @@ void	solve(t_bsq *bsq)
 		bsq->row[c] = 0;
 		c++;
 	}
-	r = 0;
-	while (r < bsq->y)
-	{
-		solve_row(bsq, r);
-		r++;
-	}
 }
 
 /*
-** 4. column c is at row[c + 1]. before we overwrite it, row[c + 1] still
-** holds the row above (top), row[c] already holds the current row (left),
-** and diag is the old row[c] (top-left).
+** 4. one cell, cell number bsq->i, in column c of row bsq->r.
+** column c is at row[c + 1]. before we overwrite it, row[c + 1] still holds
+** the row above (top), row[c] already holds the current row (left), and d is
+** the old row[c] (top-left), kept from the previous cell.
 ** a cell is 0 on an obstacle, otherwise 1 + the smallest of the three
 */
-void	solve_row(t_bsq *bsq, long r)
+void	solve_cell(t_bsq *bsq, int obstacle)
 {
 	long	c;
-	int		diag;
 	int		top;
 	int		value;
 
-	diag = 0;
-	c = 0;
-	while (c < bsq->x)
+	c = bsq->i - bsq->r * bsq->x;
+	if (c == 0)
+		bsq->d = 0;
+	top = bsq->row[c + 1];
+	value = 0;
+	if (!obstacle)
 	{
-		top = bsq->row[c + 1];
-		value = 0;
-		if (!bit_get(bsq->map, r * bsq->x + c))
-		{
-			value = bsq->row[c];
-			if (top < value)
-				value = top;
-			if (diag < value)
-				value = diag;
-			value++;
-		}
-		bsq->row[c + 1] = value;
-		diag = top;
-
-		// strictly bigger: on a tie, the first one found (top, then left) wins
-		if (value > bsq->s)
-		{
-			bsq->s = value;
-			bsq->b = r * bsq->x + c;
-		}
-		c++;
+		value = bsq->row[c];
+		if (top < value)
+			value = top;
+		if (bsq->d < value)
+			value = bsq->d;
+		value++;
 	}
+	bsq->row[c + 1] = value;
+	bsq->d = top;
+
+	// strictly bigger: on a tie, the first one found (top, then left) wins
+	if (value > bsq->s)
+	{
+		bsq->s = value;
+		bsq->b = bsq->i;
+	}
+	bit_set(bsq->map, bsq->i, obstacle);
+	bsq->i++;
 }
 
 /*

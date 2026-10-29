@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   bsq.c                                              :+:      :+:    :+:   */
+/*   bsq_read.c                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: rdomange <romitdomange@gmail.com>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -25,8 +25,8 @@ int	main(int argc, char **argv)
 			bsq.fd = open(argv[i], O_RDONLY);
 		read_rules(&bsq);
 		read_first_line(&bsq);
+		alloc_map(&bsq);
 		read_map(&bsq);
-		solve(&bsq);
 		print_square(&bsq);
 		close(bsq.fd);
 		free(bsq.buf);
@@ -69,7 +69,7 @@ void	read_first_line(t_bsq *bsq)
 
 	if (bsq->err)
 		return ;
-	bsq->buf = ft_grow(NULL, 0, &bsq->cap, 64);
+	bsq->buf = ft_grow(NULL, 0, &bsq->cap, BUF_START);
 	k = 0;
 	n = 1;
 	while (bsq->buf && k == bsq->len && n > 0)
@@ -80,7 +80,8 @@ void	read_first_line(t_bsq *bsq)
 		while (k < bsq->len && bsq->buf[k] != '\n')
 			k++;
 		if (k == bsq->len && bsq->len == bsq->cap)
-			bsq->buf = ft_grow(bsq->buf, bsq->len, &bsq->cap, bsq->cap * 2);
+			bsq->buf = ft_grow(bsq->buf, bsq->len, &bsq->cap,
+					bsq->cap * BUF_GROW);
 	}
 	bsq->x = k;
 	bsq->err = (!bsq->buf || k == bsq->len || k == 0);
@@ -90,11 +91,6 @@ void	read_map(t_bsq *bsq)
 {
 	long	k;
 
-	if (bsq->err)
-		return ;
-	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
-	if (!bsq->map)
-		bsq->err = write(2, "malloc fail\n", 12);
 	k = -1;
 	while (!bsq->err && bsq->r < bsq->y)
 	{
@@ -109,7 +105,7 @@ void	read_map(t_bsq *bsq)
 			bsq->r++;
 		else if (bsq->i < (bsq->r + 1) * bsq->x
 			&& (bsq->buf[k] == bsq->e || bsq->buf[k] == bsq->o))
-			ft_bit(bsq->map, bsq->i++, bsq->buf[k] == bsq->o);
+			solve_cell(bsq, bsq->buf[k] == bsq->o);
 		else
 			bsq->err = 1;
 	}
