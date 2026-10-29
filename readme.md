@@ -39,14 +39,13 @@ Invalid maps (different line lengths, invalid or duplicate characters, ...) must
 `open`, `close`, `read`, `write`, `malloc`, `free`. that's it!!  
 max 5 functions per file, 25 lines per function, 80 columns per line  
 max 4 parameters and 5 variable declaration per function  
-no "for loops"
+no "for loops"  
+and my own rule: everything fits in 2 `.c` files, so 10 functions at most, `main` included
 ```
 	% norminette src
 bsq.h: OK!
 norminette.c: OK!
 bsq.c: OK!
-read.c: OK!
-print.c: OK!
 	% norminette -v
 norminette 3.3.60
 ```
@@ -87,6 +86,17 @@ each value is calculated like this:
 * otherwise, the smallest of its top, left and top-left neighbours, + 1
 
 
+### the flow
+`main` reads like the program runs. for each map, five steps, one function each:
+```c
+		read_rules(&bsq);		//y, and the empty, obstacle and full characters
+		read_first_line(&bsq);	//x
+		read_map(&bsq);			//every line, stored as bits
+		solve(&bsq);			//one row of ints, finds the biggest square
+		print_square(&bsq);		//the map with the square, or "map error"
+```
+`t_bsq` carries everything between the steps. when a step fails it sets `bsq.err`, and every step after it does nothing, except `print_square`, which prints `map error`. so `main` needs no `if`s, and still never solves a broken map.
+
 ### squeezed tiny memory footprint
 for a map of dimensions $x\times y$,  
 your first instinct might be to allocate $x\times y$ `char` to store the map and $x\times y$ `int` to calculate the values.  
@@ -97,8 +107,7 @@ but we can do much better!!:
 	* the first line of the map is read in chunks into a buffer that starts at `64 bytes` and doubles until the first `\n` fits. this is the only buffer that grows, and it's only bytes, so growing it is a simple copy
 	* at the end of the first line we know $x$, and $y$ was in the rules line, so we can allocate the exact space for the whole map
 	> this is really tricky because $y$ is given, but $x$ is not, until we're done with the whole first line  
-	* the rest of the map is read in chunks of at most `4096 bytes` (`READ_BUF`), never more than the size of the map. a column counter decides where each `\n` must be, so it doesn't matter where a chunk ends, and a line that's too long can never write past the map
-	* we solve while reading: each cell goes into the `int` row as soon as it's parsed, so solving never needs a second pass over the map
+	* the rest of the map is read with that same buffer, so each `read` asks for about one line. the number of cells and rows read so far decides where each `\n` must be, so it doesn't matter where a chunk ends, and a line that's too long can never write past the map
 * because the map is made of only "obstacle" and "empty" characters, we can store them as `1`s and `0`s, dividing the memory needed by a constant factor of $8$ (bits in one `char`)!!!!
 	> this is very cool because it's low level, a bit more efficient, and harder to implement, just for fun
 * for the `int` data, we don't need $x\times y$, but only $x+1$, because we only need to store one line at a time  
@@ -120,23 +129,13 @@ o o . . . . . o . . . . . . . . . . . . . o
 
 the buffer has one extra cell at the start that is always `0`: it's the column left of the map. the buffer also starts filled with `0`s: that's the row above the map. so the cells on the top and left edges need no special case, their neighbours are just `0`, so they get `0 + 1 = 1`.
 
-this makes the peak memory footprint, when reading from the standard input, 
-$\lceil(x\times y)/8\rceil+B+(x+1)\times 4$ `bytes`, where $B$ is the read buffer: $4096$ `bytes`, or the whole map ($y\times (x+1)$ `bytes`) if that's smaller, or less than $2\times (x+1)$ `bytes` if the first line alone is longer than that  
+this makes the peak memory footprint 
+$\lceil(x\times y)/8\rceil+B+(x+1)\times 4$ `bytes`, where $B$ is the read buffer: the first power of two from $64$ that fits the first line, so less than $2\times (x+1)$ `bytes`  
 instead of $((x\times y) \times 5)$ `bytes`  
 
-measured with `valgrind --tool=massif`, on a 2000 by 2000 map that's $500000 + 4096 + 8004 = 512100$ bytes, and reading takes about 1000 `read` calls, instead of 4 million when reading one byte at a time.
+measured with `valgrind --tool=massif`: on an 80 by 40 map, $400 + 128 + 324 = 852$ bytes. on a 2000 by 2000 map, $500000 + 2048 + 8004 = 510052$ bytes, and about $2000$ `read` calls (one per line) instead of 4 million when reading one byte at a time.
 
-### even smaller: don't keep the map at all
-the bitmap is only needed to print the solution at the end. when the map is a file, we can skip it entirely: solve while reading, `close` the file, `open` it again, and print it while reading it a second time, replacing the cells inside the square on the way. the only things left in memory are the `int` row and the read buffer:  
-$B+(x+1)\times 4$ `bytes` on the heap, plus a $4096$ `bytes` buffer on the stack for the second read.
-
-| 2000 by 2000 map | peak heap | `read` calls |
-|---|---|---|
-| `./bsq map` (read twice, no bitmap) | 12100 bytes | ~2000 |
-| `./bsq < map` (bitmap) | 512100 bytes | ~1000 |
-
-the standard input can't be read twice, so `./bsq < map` keeps the bitmap. a pipe passed by name, like `./bsq <(cat map)`, can't be read twice either, and the program can't tell it's a pipe without `lseek` or `fstat`, so it prints `map error` when the second read comes up short. a file that changes between the two reads would print the new contents with the old square: it's never read out of bounds, but the output would be wrong.
-
+> why not skip the bitmap, and read the file a second time to print it? I tried: it saves the bitmap ($12.5$ MB on a 10000 by 10000 map), and the second read is almost free because the file is still in the system's cache. but the standard input can't be read twice, so `./bsq < map` still needs the bitmap, a pipe passed by name (`./bsq <(cat map)`) can't be read twice either, and it took 3 more functions than the 2 file limit allows. not worth it.
 
 indexes are calculated like this, where `x` is the width of the map, `r` the row and `c` the column
 * the index in the contiguous array is `i = r * x + c`
@@ -159,7 +158,7 @@ in your terminal, enter the following commands:
 `./map.pl [options] > map` to generate a file  
 `cat map` to display the file  
 `./bsq map` to find THE BIGGEST SQUARE!!  
-`./bsq map1 map2 ...` to solve several maps, or `./bsq < map` to read from the standard input (files are read twice to save memory, the standard input is read once and kept as a bitmap)
+`./bsq map1 map2 ...` to solve several maps, or `./bsq < map` to read from the standard input
 
 
 ### norminette atrocities
@@ -345,10 +344,12 @@ every one of these is real, from `src/`. each one keeps a function under 25 line
 
 | trick | what it saves | honest version |
 |---|---|---|
-| `if (!dst && write(2, "malloc fail\n", 12) + 2)`<br>`return (ft_free(src));` | `write` returns a number, `+ 2` makes it non-zero even on failure, so the message fits inside the condition: 2 lines | `if (!dst)`<br>`{`<br>`write(2, "malloc fail\n", 12);`<br>`free(src);`<br>`return (NULL);`<br>`}` |
-| `return (ft_free(buf));` where `ft_free` frees and returns `NULL` | 1 line per error exit, and there are a lot of error exits | `free(buf);`<br>`return (NULL);` |
+| `bsq->err = write(2, "malloc fail\n", 12);` | `write` returns `12`, or `-1` if it fails: never `0`, so printing the message and setting the error flag is one line | `write(2, "malloc fail\n", 12);`<br>`bsq->err = 1;` |
+| `if (bsq->err && write(2, "map error\n", 10))`<br>`return ;` | same idea, the message fits inside the condition: 2 lines | `if (bsq->err)`<br>`{`<br>`write(2, "map error\n", 10);`<br>`return ;`<br>`}` |
+| every step starts with `if (bsq->err) return ;` | `main` calls the five steps one after the other, with no `if` around them | `if (read_rules(&bsq) && read_first_line(&bsq) && ...)`, or one `if` per step |
 | `while (++c < bsq->x)` with `c = -1;` before the loop | the `c++;` line at the end of the loop body | `c = 0;`<br>`while (c < bsq->x)`<br>`{`<br>`...`<br>`c++;`<br>`}` |
-| `while (k == 1 && line[n] != '\n' && ++n < 14)`<br>`k = read(fd, &line[n], 1);` | the end-of-file check, the end-of-line check and the counter all live in the loop condition, so the body is one line and needs no braces | a `while (n < 14)` loop with a `read`, then two `if`s with a `break`, then `n++` |
-| the `t_bsq` struct carries the map's state everywhere | one pointer instead of 6 parameters (the limit is 4) and instead of 6 local variables (the limit is 5) | separate variables and parameters |
-| `ft_bit(map, i, 0)`, `ft_bit(map, i, 1)`, `ft_bit(map, i, 2)`: clear, set or read one bit | one function slot instead of three (the limit is 5 per file) | `bit_clear`, `bit_set`, `bit_get` |
-| `bsq->w[c + 1] = (bsq->w[c + 1] + 1) * !obstacle;` | multiplying by `0` or `1` replaces an `if`/`else`: 3 lines | `if (obstacle)`<br>`bsq->w[c + 1] = 0;`<br>`else`<br>`bsq->w[c + 1]++;` |
+| `while (k == 1 && l[n] != '\n' && ++n < 14)`<br>`k = read(bsq->fd, &l[n], 1);` | the end-of-file check, the end-of-line check and the counter all live in the loop condition, so the body is one line and needs no braces | a `while (n < 14)` loop with a `read`, then two `if`s with a `break`, then `n++` |
+| `k = (k == 1 && n < 14 && n > 3 && i == n - 3);`<br>`bsq->e = l[(n - 3) * k];` | `k` is `1` when the rules line has the right shape, `0` otherwise. multiplying by it turns a bad index into `0`, so the characters are read without going outside the array, and without an `if`/`return` | `if (n < 4 \|\| ...)`<br>`{`<br>`bsq->err = 1;`<br>`return ;`<br>`}`<br>`bsq->e = l[n - 3];` |
+| `row[c + 1] = (row[c + 1] + 1) * !ft_bit(bsq->map, i, 2);` | multiplying by `0` or `1` replaces an `if`/`else`: 3 lines | `if (ft_bit(bsq->map, i, 2))`<br>`row[c + 1] = 0;`<br>`else`<br>`row[c + 1]++;` |
+| the `t_bsq` struct carries the map's state everywhere | one pointer instead of up to 9 parameters (the limit is 4) and instead of 9 local variables (the limit is 5) | separate variables and parameters |
+| `ft_bit(map, i, 0)`, `ft_bit(map, i, 1)`, `ft_bit(map, i, 2)`: clear, set or read one bit | one function slot instead of three (the limit is 5 per file, 10 in total) | `bit_clear`, `bit_set`, `bit_get` |

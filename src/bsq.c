@@ -14,38 +14,120 @@
 
 int	main(int argc, char **argv)
 {
-	int		i;
-	int		fd;
 	t_bsq	bsq;
+	int		i;
 
-	fd = 0;
 	i = 0;
 	while (++i < argc || (argc == 1 && i == 1))
 	{
 		bsq = (t_bsq){0};
 		if (argc > 1)
-			fd = open(argv[i], O_RDONLY);
-		if (get_map(fd, &bsq, argc == 1))
-			ft_print(&bsq, argv[i]);
-		else
-			write(2, "map error\n", 10);
-		close(fd);
-		free(bsq.w);
-		free(bsq.m);
+			bsq.fd = open(argv[i], O_RDONLY);
+		read_rules(&bsq);
+		read_first_line(&bsq);
+		read_map(&bsq);
+		solve(&bsq);
+		print_square(&bsq);
+		close(bsq.fd);
+		free(bsq.buf);
+		free(bsq.map);
+		free(bsq.row);
 		if (argc > 2 && i < argc - 1)
 			write(1, "\n", 1);
 	}
 	return (0);
 }
 
-void	ft_print(t_bsq *bsq, char *path)
+void	read_rules(t_bsq *bsq)
 {
-	bsq->r = 0;
-	bsq->i = 0;
-	if (!bsq->m)
-		reprint(bsq, path);
-	while (bsq->m && bsq->r < bsq->y)
-		print_line(bsq);
-	if (bsq->r < bsq->y)
-		write(2, "map error\n", 10);
+	char	l[14];
+	long	n;
+	long	k;
+	long	i;
+
+	n = 0;
+	k = read(bsq->fd, &l[0], 1);
+	while (k == 1 && l[n] != '\n' && ++n < 14)
+		k = read(bsq->fd, &l[n], 1);
+	i = 0;
+	while (i < n - 3 && '0' <= l[i] && l[i] <= '9')
+		bsq->y = bsq->y * 10 + l[i++] - '0';
+	k = (k == 1 && n < 14 && n > 3 && i == n - 3);
+	while (k && i < n && ' ' <= l[i] && l[i] <= '~')
+		i++;
+	bsq->e = l[(n - 3) * k];
+	bsq->o = l[(n - 2) * k];
+	bsq->f = l[(n - 1) * k];
+	bsq->err = (!k || i != n || !bsq->y || bsq->y > 2147483647
+			|| bsq->e == bsq->o || bsq->e == bsq->f || bsq->o == bsq->f);
+}
+
+void	read_first_line(t_bsq *bsq)
+{
+	long	n;
+	long	k;
+
+	if (bsq->err)
+		return ;
+	bsq->buf = ft_grow(NULL, 0, &bsq->cap, 64);
+	k = 0;
+	n = 1;
+	while (bsq->buf && k == bsq->len && n > 0)
+	{
+		n = read(bsq->fd, bsq->buf + bsq->len, bsq->cap - bsq->len);
+		if (n > 0)
+			bsq->len += n;
+		while (k < bsq->len && bsq->buf[k] != '\n')
+			k++;
+		if (k == bsq->len && bsq->len == bsq->cap)
+			bsq->buf = ft_grow(bsq->buf, bsq->len, &bsq->cap, bsq->cap * 2);
+	}
+	bsq->x = k;
+	bsq->err = (!bsq->buf || k == bsq->len || k == 0);
+}
+
+void	read_map(t_bsq *bsq)
+{
+	long	k;
+
+	if (bsq->err)
+		return ;
+	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
+	if (!bsq->map)
+		bsq->err = write(2, "malloc fail\n", 12);
+	k = -1;
+	while (!bsq->err && bsq->r < bsq->y)
+	{
+		if (++k == bsq->len)
+		{
+			bsq->len = read(bsq->fd, bsq->buf, bsq->cap);
+			k = 0;
+		}
+		if (bsq->len <= 0)
+			bsq->err = 1;
+		else if (bsq->i == (bsq->r + 1) * bsq->x && bsq->buf[k] == '\n')
+			bsq->r++;
+		else if (bsq->i < (bsq->r + 1) * bsq->x
+			&& (bsq->buf[k] == bsq->e || bsq->buf[k] == bsq->o))
+			ft_bit(bsq->map, bsq->i++, bsq->buf[k] == bsq->o);
+		else
+			bsq->err = 1;
+	}
+}
+
+char	*ft_grow(char *src, long len, long *cap, long size)
+{
+	char	*dst;
+	long	i;
+
+	*cap = size;
+	dst = (char *)malloc(size);
+	if (!dst && write(2, "malloc fail\n", 12))
+		free(src);
+	i = -1;
+	while (dst && ++i < len)
+		dst[i] = src[i];
+	if (dst)
+		free(src);
+	return (dst);
 }

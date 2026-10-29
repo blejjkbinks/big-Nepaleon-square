@@ -12,88 +12,90 @@
 
 #include "bsq.h"
 
+void	solve(t_bsq *bsq)
+{
+	long	r;
+
+	if (bsq->err)
+		return ;
+	bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
+	if (!bsq->row)
+		bsq->err = write(2, "malloc fail\n", 12);
+	r = -1;
+	while (bsq->row && ++r <= bsq->x)
+		bsq->row[r] = 0;
+	r = -1;
+	while (bsq->row && ++r < bsq->y)
+		solve_row(bsq, r);
+}
+
+void	solve_row(t_bsq *bsq, long r)
+{
+	long	c;
+	int		diag;
+	int		top;
+	int		*row;
+
+	row = bsq->row;
+	c = -1;
+	diag = 0;
+	while (++c < bsq->x)
+	{
+		top = row[c + 1];
+		row[c + 1] = row[c];
+		if (top < row[c + 1])
+			row[c + 1] = top;
+		if (diag < row[c + 1])
+			row[c + 1] = diag;
+		row[c + 1] = (row[c + 1] + 1) * !ft_bit(bsq->map, r * bsq->x + c, 2);
+		diag = top;
+		if (row[c + 1] > bsq->s)
+		{
+			bsq->s = row[c + 1];
+			bsq->b = r * bsq->x + c;
+		}
+	}
+}
+
+void	print_square(t_bsq *bsq)
+{
+	long	r;
+
+	if (bsq->err && write(2, "map error\n", 10))
+		return ;
+	r = -1;
+	while (++r < bsq->y)
+		print_line(bsq, (char *)bsq->row, r);
+}
+
+void	print_line(t_bsq *bsq, char *line, long r)
+{
+	long	c;
+	long	t;
+	long	l;
+
+	t = bsq->b / bsq->x - bsq->s + 1;
+	l = bsq->b % bsq->x - bsq->s + 1;
+	c = -1;
+	while (++c < bsq->x)
+	{
+		line[c * (1 + SPACED)] = bsq->e;
+		if (ft_bit(bsq->map, r * bsq->x + c, 2))
+			line[c * (1 + SPACED)] = bsq->o;
+		else if (r >= t && r < t + bsq->s && c >= l && c < l + bsq->s)
+			line[c * (1 + SPACED)] = bsq->f;
+		if (SPACED)
+			line[c * 2 + 1] = ' ';
+	}
+	line[bsq->x * (1 + SPACED) - SPACED] = '\n';
+	write(1, line, bsq->x * (1 + SPACED) - SPACED + 1);
+}
+
 int	ft_bit(char *arr, long i, int val)
 {
-	int	bsize;
-	int	ret;
-
-	if (!arr)
-		return (-1);
-	ret = 3;
-	bsize = sizeof(char) * 8;
 	if (val == 0)
-		arr[i / bsize] &= ~(1 << (i % bsize));
+		arr[i / 8] &= ~(1 << (i % 8));
 	else if (val == 1)
-		arr[i / bsize] |= (1 << (i % bsize));
-	else if (val == 2)
-		ret = (arr[i / bsize] & (1 << (i % bsize))) != 0;
-	else
-		return (-2);
-	return (ret);
-}
-
-void	*ft_free(void *ptr)
-{
-	free(ptr);
-	return (NULL);
-}
-
-char	*ft_grow(char *src, long len, long *cap, long size)
-{
-	char	*dst;
-	long	i;
-
-	*cap = size;
-	dst = (char *)malloc(size);
-	if (!dst && write(2, "malloc fail\n", 12) + 2)
-		return (ft_free(src));
-	i = -1;
-	while (++i < len)
-		dst[i] = src[i];
-	free(src);
-	return (dst);
-}
-
-void	solve_cell(t_bsq *bsq, int obstacle)
-{
-	long	c;
-	int		top;
-
-	c = bsq->i - bsq->r * bsq->x;
-	if (c == 0)
-		bsq->d = 0;
-	top = bsq->w[c + 1];
-	bsq->w[c + 1] = bsq->w[c];
-	if (top < bsq->w[c + 1])
-		bsq->w[c + 1] = top;
-	if (bsq->d < bsq->w[c + 1])
-		bsq->w[c + 1] = bsq->d;
-	bsq->w[c + 1] = (bsq->w[c + 1] + 1) * !obstacle;
-	bsq->d = top;
-	if (bsq->w[c + 1] > bsq->s)
-	{
-		bsq->s = bsq->w[c + 1];
-		bsq->b = bsq->i;
-	}
-	if (bsq->m)
-		ft_bit(bsq->m, bsq->i, obstacle);
-	bsq->i++;
-}
-
-int	alloc_map(t_bsq *bsq, int keep)
-{
-	long	c;
-
-	bsq->w = (int *)malloc((bsq->x + 1) * sizeof(int));
-	if (bsq->w && keep)
-		bsq->m = (char *)malloc((bsq->x * bsq->y + 7) / 8);
-	if (!bsq->w || (keep && !bsq->m))
-	{
-		write(2, "malloc fail\n", 12);
-		return (0);
-	}
-	c = 0;
-	while (c <= bsq->x)
-		bsq->w[c++] = 0;
-	return (1);
+		arr[i / 8] |= (1 << (i % 8));
+	return ((arr[i / 8] >> (i % 8)) & 1);
 }

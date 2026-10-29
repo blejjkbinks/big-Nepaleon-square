@@ -17,45 +17,39 @@
 # include <stdlib.h>	//malloc, free
 # include <fcntl.h>		//open, close
 
-# define READ_BUF 4096	//max bytes per read() after the first line
-
 # ifndef SPACED
 #  define SPACED 0		//1 prints a space between cells: make spaced
 # endif
 
 typedef struct s_bsq
 {
+	int		fd;		//the map's file descriptor
+	int		err;	//set by a step that fails, the next steps do nothing
+	char	*buf;	//read buffer: the first line, then chunks of cap bytes
+	long	len;	//bytes in buf
+	long	cap;	//size of buf
+	char	*map;	//bitmap of obstacles, x * y bits
+	int		*row;	//row of square sizes, x + 1 ints, row[0] stays 0
 	long	x;		//width, length of the first line
 	long	y;		//height, number from the rules line
 	char	e;		//empty character
 	char	o;		//obstacle character
 	char	f;		//full character, draws the square
 	long	i;		//cells read so far, index of the next cell
-	long	r;		//rows read (or printed) so far
+	long	r;		//rows read so far
 	long	b;		//index of the bottom-right cell of the biggest square
 	int		s;		//size of the biggest square
-	int		d;		//diag, the top-left neighbour of the current cell
-	int		*w;		//row of square sizes, x + 1 ints, w[0] stays 0
-	char	*m;		//bitmap of obstacles, NULL when the file is read again
 }	t_bsq;
 
-int		ft_bit(char *arr, long i, int val);
-void	*ft_free(void *ptr);
+void	read_rules(t_bsq *bsq);
+void	read_first_line(t_bsq *bsq);
+void	read_map(t_bsq *bsq);
 char	*ft_grow(char *src, long len, long *cap, long size);
-void	solve_cell(t_bsq *bsq, int obstacle);
-int		alloc_map(t_bsq *bsq, int keep);
 
-int		get_map(int fd, t_bsq *bsq, int keep);
-int		get_rules(int fd, t_bsq *bsq);
-char	*first_line(int fd, t_bsq *bsq, long *len, long *cap);
-char	*fit_buf(char *buf, long len, long *cap, t_bsq *bsq);
-int		parse(char *buf, long len, t_bsq *bsq);
-
-void	print_line(t_bsq *bsq);
-void	put_char(t_bsq *bsq, char ch);
-void	flush_line(t_bsq *bsq, char *line);
-void	reprint(t_bsq *bsq, char *path);
-
-void	ft_print(t_bsq *bsq, char *path);
+void	solve(t_bsq *bsq);
+void	solve_row(t_bsq *bsq, long r);
+void	print_square(t_bsq *bsq);
+void	print_line(t_bsq *bsq, char *line, long r);
+int		ft_bit(char *arr, long i, int val);
 
 #endif	//bsq.h
