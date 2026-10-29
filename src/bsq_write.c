@@ -52,7 +52,9 @@ void	solve_cell(t_bsq *bsq, int obstacle)
 		bsq->s = row[c + 1];
 		bsq->b = bsq->i;
 	}
-	ft_bit(bsq->map, bsq->i++, obstacle);
+	bsq->map[bsq->i / 8] = (bsq->map[bsq->i / 8] & ~(1 << (bsq->i % 8)))
+		| (obstacle << (bsq->i % 8));
+	bsq->i++;
 }
 
 void	print_square(t_bsq *bsq)
@@ -76,7 +78,7 @@ void	print_line(t_bsq *bsq, char *line, long r)
 	while (++c < bsq->x)
 	{
 		line[c * (1 + SPACED)] = bsq->e;
-		if (ft_bit(bsq->map, r * bsq->x + c, 2))
+		if ((bsq->map[(r * bsq->x + c) / 8] >> ((r * bsq->x + c) % 8)) & 1)
 			line[c * (1 + SPACED)] = bsq->o;
 		else if (r >= t && r < t + bsq->s && c >= l && c < l + bsq->s)
 			line[c * (1 + SPACED)] = bsq->f;
@@ -87,13 +89,18 @@ void	print_line(t_bsq *bsq, char *line, long r)
 	write(1, line, bsq->x * (1 + SPACED) - SPACED + 1);
 }
 
-//cell i is bit i % 8 of byte i / 8. val 0 clears it, 1 sets it,
-//anything else only reads it. returns the bit, after the change
-int	ft_bit(char *arr, long i, int val)
-{
-	if (val == 0)
-		arr[i / 8] &= ~(1 << (i % 8));
-	else if (val == 1)
-		arr[i / 8] |= (1 << (i % 8));
-	return ((arr[i / 8] >> (i % 8)) & 1);
-}
+/*
+** not used anymore: its calls are written inline, in solve_cell and
+** print_line, to save 200M function calls on a 10000 by 10000 map.
+** cell i is bit i % 8 of byte i / 8. val 0 clears it, 1 sets it,
+** anything else only reads it. returns the bit, after the change
+**
+** int	ft_bit(char *arr, long i, int val)
+** {
+** 	if (val == 0)
+** 		arr[i / 8] &= ~(1 << (i % 8));
+** 	else if (val == 1)
+** 		arr[i / 8] |= (1 << (i % 8));
+** 	return ((arr[i / 8] >> (i % 8)) & 1);
+** }
+*/

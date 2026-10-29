@@ -53,6 +53,5 @@ char	*ft_grow(char *src, long len, long *cap, long size);
 void	solve_cell(t_bsq *bsq, int obstacle);
 void	print_square(t_bsq *bsq);
 void	print_line(t_bsq *bsq, char *line, long r);
-int		ft_bit(char *arr, long i, int val);
 
 #endif	//bsq.h
