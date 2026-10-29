@@ -16,6 +16,7 @@
 # include <unistd.h>	//read, write
 # include <stdlib.h>	//malloc, free
 # include <fcntl.h>		//open, close
+# include <limits.h>	//INT_MAX
 
 # define BUF_START 64	//first size of the read buffer, in bytes
 # define BUF_GROW 2		//the read buffer grows by this factor

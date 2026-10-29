@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <limits.h>
 
 #define BUF_START 64	//first size of the read buffer, in bytes
 #define BUF_GROW 2		//the read buffer grows by this factor
@@ -174,7 +175,7 @@ void	read_rules(int fd, t_bsq *bsq)
 		bsq->y = bsq->y * 10 + l[i] - '0';
 		i++;
 	}
-	if (i != n - 3 || bsq->y == 0 || bsq->y > 2147483647)
+	if (i != n - 3 || bsq->y == 0 || bsq->y > INT_MAX)
 		return ;
 
 	// the 3 characters must be printable and all different

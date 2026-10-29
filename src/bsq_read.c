@@ -83,7 +83,7 @@ void	read_rules(int fd, t_bsq *bsq)
 	bsq->e = l[(n - 3) * k];
 	bsq->o = l[(n - 2) * k];
 	bsq->f = l[(n - 1) * k];
-	bsq->err = (!k || i != n || !bsq->y || bsq->y > 2147483647
+	bsq->err = (!k || i != n || !bsq->y || bsq->y > INT_MAX
 			|| bsq->e == bsq->o || bsq->e == bsq->f || bsq->o == bsq->f);
 }
 
