@@ -94,7 +94,7 @@ void	read_first_line(int fd, t_bsq *bsq)
 
 	if (bsq->err)
 		return ;
-	bsq->buf = ft_grow(NULL, 0, &bsq->cap, BUF_START);
+	bsq->buf = ft_realloc(NULL, 0, &bsq->cap, BUF_START);
 	k = 0;
 	n = 1;
 	while (bsq->buf && k == bsq->len && n > 0)
@@ -105,7 +105,7 @@ void	read_first_line(int fd, t_bsq *bsq)
 		while (k < bsq->len && bsq->buf[k] != '\n')
 			k++;
 		if (k == bsq->len && bsq->len == bsq->cap)
-			bsq->buf = ft_grow(bsq->buf, bsq->len, &bsq->cap,
+			bsq->buf = ft_realloc(bsq->buf, bsq->len, &bsq->cap,
 					bsq->cap * BUF_GROW);
 	}
 	bsq->x = k;

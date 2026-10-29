@@ -12,20 +12,19 @@
 
 #include "bsq.h"
 
-char	*ft_grow(char *src, long len, long *cap, long size)
+char	*ft_realloc(char *src, long len, long *cap, long size)
 {
 	char	*dst;
 	long	i;
 
 	*cap = size;
 	dst = (char *)malloc(size);
-	if (!dst && write(2, "malloc fail\n", 12))
-		free(src);
+	if (!dst)
+		write(2, "malloc fail\n", 12);
 	i = -1;
 	while (dst && ++i < len)
 		dst[i] = src[i];
-	if (dst)
-		free(src);
+	free(src);
 	return (dst);
 }
 

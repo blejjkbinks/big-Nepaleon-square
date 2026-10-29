@@ -355,7 +355,6 @@ every one of these is real, from `src/`. each one keeps a function under 25 line
 | trick | what it saves | honest version |
 |---|---|---|
 | `bsq->err = write(2, "malloc fail\n", 12);` | `write` returns `12`, or `-1` if it fails: never `0`, so printing the message and setting the error flag is one line | `write(2, "malloc fail\n", 12);`<br>`bsq->err = 1;` |
-| `if (!dst && write(2, "malloc fail\n", 12))`<br>`free(src);` | same idea, the message fits inside the condition | `if (!dst)`<br>`{`<br>`write(2, "malloc fail\n", 12);`<br>`free(src);`<br>`}` |
 | every reading step starts with `if (bsq->err) return ;` | `get_map` calls the steps one after the other, with no `if` around them | `if (read_rules(fd, bsq) && read_first_line(fd, bsq) && ...)`, or one `if` per step |
 | `while (++c < bsq->x)` with `c = -1;` before the loop | the `c++;` line at the end of the loop body | `c = 0;`<br>`while (c < bsq->x)`<br>`{`<br>`...`<br>`c++;`<br>`}` |
 | `while (k == 1 && l[n] != '\n' && ++n < 14)`<br>`k = read(bsq->fd, &l[n], 1);` | the end-of-file check, the end-of-line check and the counter all live in the loop condition, so the body is one line and needs no braces | a `while (n < 14)` loop with a `read`, then two `if`s with a `break`, then `n++` |

@@ -49,7 +49,7 @@ void	read_rules(int fd, t_bsq *bsq);
 void	read_first_line(int fd, t_bsq *bsq);
 void	read_map(int fd, t_bsq *bsq);
 
-char	*ft_grow(char *src, long len, long *cap, long size);
+char	*ft_realloc(char *src, long len, long *cap, long size);
 void	solve_cell(t_bsq *bsq, int obstacle);
 void	print_square(t_bsq *bsq);
 void	print_line(t_bsq *bsq, char *line, long r);

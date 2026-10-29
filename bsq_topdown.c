@@ -55,7 +55,7 @@ char	*get_map(int fd, t_bsq *bsq);
 void	read_rules(int fd, t_bsq *bsq);
 void	read_first_line(int fd, t_bsq *bsq);
 void	read_map(int fd, t_bsq *bsq);
-char	*ft_grow(char *src, long len, long *cap, long size);
+char	*ft_realloc(char *src, long len, long *cap, long size);
 void	solve_cell(t_bsq *bsq, int obstacle);
 void	print_square(t_bsq *bsq);
 void	print_line(t_bsq *bsq, char *line, long r);
@@ -208,7 +208,7 @@ void	read_first_line(int fd, t_bsq *bsq)
 
 	if (bsq->err)
 		return ;
-	bsq->buf = ft_grow(NULL, 0, &bsq->cap, BUF_START);
+	bsq->buf = ft_realloc(NULL, 0, &bsq->cap, BUF_START);
 	k = 0;
 	while (bsq->buf)
 	{
@@ -225,7 +225,7 @@ void	read_first_line(int fd, t_bsq *bsq)
 
 		// not found and the buffer is full: grow it
 		if (bsq->len == bsq->cap)
-			bsq->buf = ft_grow(bsq->buf, bsq->len, &bsq->cap,
+			bsq->buf = ft_realloc(bsq->buf, bsq->len, &bsq->cap,
 					bsq->cap * BUF_GROW);
 	}
 	bsq->x = k;
@@ -285,7 +285,7 @@ void	read_map(int fd, t_bsq *bsq)
 ** make a new buffer of size bytes, copy the first len bytes of src into it,
 ** free src. src can be NULL to just allocate
 */
-char	*ft_grow(char *src, long len, long *cap, long size)
+char	*ft_realloc(char *src, long len, long *cap, long size)
 {
 	char	*dst;
 	long	i;
