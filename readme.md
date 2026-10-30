@@ -96,18 +96,22 @@ each value is calculated like this:
 		else
 			write(2, "map error\n", 10);
 ```
-and `get_map` runs the reading steps, one function each, and returns `NULL` at the first one that fails:
+and `get_map` runs the reading steps, one function each. `&&` stops at the first one that fails:
 ```c
-	if (!read_rules(fd, bsq) || !read_first_line(fd, bsq))	//y and the 3 characters, then x
-		return (NULL);
-	...						//allocate the bitmap and the row of ints, at their exact size
-	if (!read_map(fd, bsq))	//every line: each cell is stored as a bit and solved
+	buf = (t_buf){0};
+	ok = (read_rules(fd, bsq)				//y, and the empty, obstacle and full characters
+		&& read_first_line(fd, bsq, &buf)	//x
+		&& alloc_map(bsq)					//the bitmap and the row of ints, at their exact size
+		&& read_map(fd, bsq, &buf));		//every line: each cell is stored as a bit and solved
+	free(buf.str);
+	if (!ok)
 		return (NULL);
 	return (bsq->map);
 ```
 the map is solved while it's read: each cell goes into the row of ints as soon as it's checked, so there is no second pass over the bitmap, only the one to print it.  
-`t_bsq` carries everything between the steps, including the read buffer, the bitmap and the row of ints. `main` frees all three after each map, whichever step allocated them, so `get_map` can return early without leaking.  
-`src/bsq_read.c` holds `main` and the reading, `src/bsq_write.c` holds what writes: the bits, the row of ints, the output, and growing the read buffer.
+`t_bsq` carries what the reading and the printing share: the sizes, the characters, the bitmap and the row of ints. `main` frees the bitmap and the row after each map, whichever way `get_map` ended.  
+the read buffer, `t_buf` (the bytes, how many, and the buffer's size), is only used while reading, so it lives in `get_map`, which frees it in one place.  
+`src/bsq_read.c` holds `main` and the reading, `src/bsq_write.c` holds what writes memory or output: growing the read buffer, allocating the bitmap and the row of ints, solving each cell, and printing.
 
 ### squeezed tiny memory footprint
 for a map of dimensions $x\times y$,  
@@ -356,7 +360,7 @@ every one of these is real, from `src/`. each one keeps a function under 25 line
 
 | trick | what it saves | honest version |
 |---|---|---|
-| `if ((!bsq->map \|\| !bsq->row) && write(2, "malloc fail\n", 12))`<br>`return (NULL);` | `write` returns `12`, or `-1` if it fails: never `0`, so the message fits inside the condition: 2 lines | `if (!bsq->map \|\| !bsq->row)`<br>`{`<br>`write(2, "malloc fail\n", 12);`<br>`return (NULL);`<br>`}` |
+| `if ((!bsq->map \|\| !bsq->row) && write(2, "malloc fail\n", 12))`<br>`return (0);` | `write` returns `12`, or `-1` if it fails: never `0`, so the message fits inside the condition: 2 lines | `if (!bsq->map \|\| !bsq->row)`<br>`{`<br>`write(2, "malloc fail\n", 12);`<br>`return (0);`<br>`}` |
 | `while (++c < bsq->x)` with `c = -1;` before the loop | the `c++;` line at the end of the loop body | `c = 0;`<br>`while (c < bsq->x)`<br>`{`<br>`...`<br>`c++;`<br>`}` |
 | `l[0] = 0;`<br>`while (read(fd, &l[n], 1) == 1 && l[n] != '\n' && ++n < 14)`<br>`l[n] = 0;` | the `read`, the end-of-file check, the end-of-line check and the counter all live in the loop condition, so the body is one line and needs no braces. the body clears the next byte before it's read: if the file ends there, `read` writes nothing and it stays `0`, so `l[n] == '\n'` afterwards is only true when the line really ended. (the norm forbids `char l[14] = {0};`, declaration and assignment on one line) | a `while (n < 14)` loop with a `read`, then two `if`s with a `break`, then `n++` |
 | `ok = (n < 14 && l[n] == '\n' && n > 3 && i == n - 3);`<br>`bsq->e = l[(n - 3) * ok];` | `ok` is `1` when the rules line has the right shape, `0` otherwise. multiplying by it turns a bad index into `0`, so the characters are read without going outside the array, and without an `if`/`return` | `if (n < 4 \|\| ...)`<br>`{`<br>`bsq->err = 1;`<br>`return ;`<br>`}`<br>`bsq->e = l[n - 3];` |

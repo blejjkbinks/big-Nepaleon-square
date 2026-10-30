@@ -12,20 +12,35 @@
 
 #include "bsq.h"
 
-char	*ft_realloc(char *src, long len, long *cap, long size)
+char	*ft_realloc(t_buf *buf, long size)
 {
 	char	*dst;
 	long	i;
 
-	*cap = size;
 	dst = (char *)malloc(size);
 	if (!dst)
 		write(2, "malloc fail\n", 12);
 	i = -1;
-	while (dst && ++i < len)
-		dst[i] = src[i];
-	free(src);
+	while (dst && ++i < buf->len)
+		dst[i] = buf->str[i];
+	free(buf->str);
+	buf->str = dst;
+	buf->cap = size;
 	return (dst);
+}
+
+int	alloc_map(t_bsq *bsq)
+{
+	long	c;
+
+	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
+	bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
+	if ((!bsq->map || !bsq->row) && write(2, "malloc fail\n", 12))
+		return (0);
+	c = -1;
+	while (++c <= bsq->x)
+		bsq->row[c] = 0;
+	return (1);
 }
 
 void	solve_cell(t_bsq *bsq, int obstacle)

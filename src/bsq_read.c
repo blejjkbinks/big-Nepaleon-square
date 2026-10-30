@@ -32,7 +32,6 @@ int	main(int argc, char **argv)
 			print_square(&bsq);
 		else
 			write(2, "map error\n", 10);
-		free(bsq.buf);
 		free(bsq.map);
 		free(bsq.row);
 		if (argc > 2 && i < argc - 1)
@@ -43,18 +42,14 @@ int	main(int argc, char **argv)
 
 char	*get_map(int fd, t_bsq *bsq)
 {
-	long	c;
+	t_buf	buf;
+	int		ok;
 
-	if (!read_rules(fd, bsq) || !read_first_line(fd, bsq))
-		return (NULL);
-	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
-	bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
-	if ((!bsq->map || !bsq->row) && write(2, "malloc fail\n", 12))
-		return (NULL);
-	c = -1;
-	while (++c <= bsq->x)
-		bsq->row[c] = 0;
-	if (!read_map(fd, bsq))
+	buf = (t_buf){0};
+	ok = (read_rules(fd, bsq) && read_first_line(fd, bsq, &buf)
+			&& alloc_map(bsq) && read_map(fd, bsq, &buf));
+	free(buf.str);
+	if (!ok)
 		return (NULL);
 	return (bsq->map);
 }
@@ -83,48 +78,47 @@ int	read_rules(int fd, t_bsq *bsq)
 		&& bsq->e != bsq->o && bsq->e != bsq->f && bsq->o != bsq->f);
 }
 
-int	read_first_line(int fd, t_bsq *bsq)
+int	read_first_line(int fd, t_bsq *bsq, t_buf *buf)
 {
 	long	n;
 	long	k;
 
-	bsq->buf = ft_realloc(NULL, 0, &bsq->cap, BUF_START);
+	ft_realloc(buf, BUF_START);
 	k = 0;
 	n = 1;
-	while (bsq->buf && k == bsq->len && n > 0)
+	while (buf->str && k == buf->len && n > 0)
 	{
-		n = read(fd, bsq->buf + bsq->len, bsq->cap - bsq->len);
+		n = read(fd, buf->str + buf->len, buf->cap - buf->len);
 		if (n > 0)
-			bsq->len += n;
-		while (k < bsq->len && bsq->buf[k] != '\n')
+			buf->len += n;
+		while (k < buf->len && buf->str[k] != '\n')
 			k++;
-		if (k == bsq->len && bsq->len == bsq->cap)
-			bsq->buf = ft_realloc(bsq->buf, bsq->len, &bsq->cap,
-					bsq->cap * BUF_GROW);
+		if (k == buf->len && buf->len == buf->cap)
+			ft_realloc(buf, buf->cap * BUF_GROW);
 	}
 	bsq->x = k;
-	return (bsq->buf && k < bsq->len && k > 0);
+	return (buf->str && k < buf->len && k > 0);
 }
 
-int	read_map(int fd, t_bsq *bsq)
+int	read_map(int fd, t_bsq *bsq, t_buf *buf)
 {
 	long	k;
 
 	k = -1;
 	while (bsq->r < bsq->y)
 	{
-		if (++k == bsq->len)
+		if (++k == buf->len)
 		{
-			bsq->len = read(fd, bsq->buf, bsq->cap);
+			buf->len = read(fd, buf->str, buf->cap);
 			k = 0;
 		}
-		if (bsq->len <= 0)
+		if (buf->len <= 0)
 			return (0);
-		else if (bsq->i == (bsq->r + 1) * bsq->x && bsq->buf[k] == '\n')
+		else if (bsq->i == (bsq->r + 1) * bsq->x && buf->str[k] == '\n')
 			bsq->r++;
 		else if (bsq->i < (bsq->r + 1) * bsq->x
-			&& (bsq->buf[k] == bsq->e || bsq->buf[k] == bsq->o))
-			solve_cell(bsq, bsq->buf[k] == bsq->o);
+			&& (buf->str[k] == bsq->e || buf->str[k] == bsq->o))
+			solve_cell(bsq, buf->str[k] == bsq->o);
 		else
 			return (0);
 	}

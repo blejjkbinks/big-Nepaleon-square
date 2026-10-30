@@ -13,7 +13,7 @@
 ** get_map runs the reading steps, and stops at the first one that fails:
 **     1. read_rules       the rules line         -> y, empty, obstacle, full
 **     2. read_first_line  the first line         -> x
-**     3. (in get_map)     allocate the bitmap and the row of ints
+**     3. alloc_map        the bitmap and the row of ints, at their exact size
 **     4. read_map         every line: each cell is stored as a bit and solved
 **                         right away                -> the biggest square
 ** then main:
@@ -32,11 +32,15 @@
 # define SPACED 0		//1 prints a space between cells: make spaced
 #endif
 
+typedef struct s_buf
+{
+	char	*str;	//read buffer: the first line, then chunks of cap bytes
+	long	len;	//bytes in str
+	long	cap;	//size of str
+}	t_buf;
+
 typedef struct s_bsq
 {
-	char	*buf;	//read buffer: the first line, then chunks of cap bytes
-	long	len;	//bytes in buf
-	long	cap;	//size of buf
 	char	*map;	//bitmap of obstacles, x * y bits
 	int		*row;	//row of square sizes, x + 1 ints, row[0] stays 0
 	long	x;		//width, length of the first line
@@ -53,9 +57,10 @@ typedef struct s_bsq
 
 char	*get_map(int fd, t_bsq *bsq);
 int		read_rules(int fd, t_bsq *bsq);
-int		read_first_line(int fd, t_bsq *bsq);
-int		read_map(int fd, t_bsq *bsq);
-char	*ft_realloc(char *src, long len, long *cap, long size);
+int		read_first_line(int fd, t_bsq *bsq, t_buf *buf);
+int		read_map(int fd, t_bsq *bsq, t_buf *buf);
+char	*ft_realloc(t_buf *buf, long size);
+int		alloc_map(t_bsq *bsq);
 void	solve_cell(t_bsq *bsq, int obstacle);
 void	print_square(t_bsq *bsq);
 void	print_line(t_bsq *bsq, char *line, long r);
@@ -87,7 +92,6 @@ int	main(int argc, char **argv)
 		else
 			write(2, "map error\n", 10);
 		// whatever get_map allocated, even if it stopped halfway
-		free(bsq.buf);
 		free(bsq.map);
 		free(bsq.row);
 		// a line break between maps
@@ -99,38 +103,23 @@ int	main(int argc, char **argv)
 }
 
 /*
-** steps 1 to 4. returns the bitmap, solved, or NULL as soon as a step fails.
-** main frees the read buffer, the bitmap and the int row, whatever happens:
-** print_square still needs the int row as its line buffer
+** steps 1 to 4, one after the other: && stops at the first one that fails.
+** the read buffer only lives here, and is freed here whatever happens.
+** the bitmap and the int row are freed by main: print_square still needs
+** them. returns the bitmap, solved, or NULL
 */
 char	*get_map(int fd, t_bsq *bsq)
 {
-	long	c;
+	t_buf	buf;
+	int		ok;
 
-	if (!read_rules(fd, bsq))
-		return (NULL);
-	if (!read_first_line(fd, bsq))
-		return (NULL);
-
-	// 3. we know x and y now: allocate the bitmap once, at its exact size,
-	//    and the int row. the row starts all 0: row[0] is the column left of
-	//    the map, and the rest is the row above the map, so the edges need
-	//    no special case
-	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
-	bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
-	if (!bsq->map || !bsq->row)
-	{
-		write(2, "malloc fail\n", 12);
-		return (NULL);
-	}
-	c = 0;
-	while (c <= bsq->x)
-	{
-		bsq->row[c] = 0;
-		c++;
-	}
-
-	if (!read_map(fd, bsq))
+	buf = (t_buf){0};
+	ok = read_rules(fd, bsq)
+		&& read_first_line(fd, bsq, &buf)
+		&& alloc_map(bsq)
+		&& read_map(fd, bsq, &buf);
+	free(buf.str);
+	if (!ok)
 		return (NULL);
 	return (bsq->map);
 }
@@ -196,36 +185,35 @@ int	read_rules(int fd, t_bsq *bsq)
 ** the buffer keeps this size for the rest of the map: every later read()
 ** asks for about one line
 */
-int	read_first_line(int fd, t_bsq *bsq)
+int	read_first_line(int fd, t_bsq *bsq, t_buf *buf)
 {
 	long	n;
 	long	k;
 
-	bsq->buf = ft_realloc(NULL, 0, &bsq->cap, BUF_START);
+	ft_realloc(buf, BUF_START);
 	k = 0;
-	while (bsq->buf)
+	while (buf->str)
 	{
-		n = read(fd, bsq->buf + bsq->len, bsq->cap - bsq->len);
+		n = read(fd, buf->str + buf->len, buf->cap - buf->len);
 		if (n <= 0)
 			break ;
-		bsq->len += n;
+		buf->len += n;
 
 		// look for '\n' in the bytes we just read
-		while (k < bsq->len && bsq->buf[k] != '\n')
+		while (k < buf->len && buf->str[k] != '\n')
 			k++;
-		if (k < bsq->len)
+		if (k < buf->len)
 			break ;
 
 		// not found and the buffer is full: grow it
-		if (bsq->len == bsq->cap)
-			bsq->buf = ft_realloc(bsq->buf, bsq->len, &bsq->cap,
-					bsq->cap * BUF_GROW);
+		if (buf->len == buf->cap)
+			ft_realloc(buf, buf->cap * BUF_GROW);
 	}
 	bsq->x = k;
 
 	// fails with no buffer, no '\n' before the end of the file, or an empty
 	// first line
-	return (bsq->buf && k < bsq->len && k > 0);
+	return (buf->str && k < buf->len && k > 0);
 }
 
 /*
@@ -237,7 +225,7 @@ int	read_first_line(int fd, t_bsq *bsq)
 ** a line that is too long fails here, before anything is written past the
 ** bitmap. bytes after the last row are ignored
 */
-int	read_map(int fd, t_bsq *bsq)
+int	read_map(int fd, t_bsq *bsq, t_buf *buf)
 {
 	long	k;
 	long	row_end;
@@ -247,14 +235,14 @@ int	read_map(int fd, t_bsq *bsq)
 	while (bsq->r < bsq->y)
 	{
 		// buffer used up: read the next chunk
-		if (k == bsq->len)
+		if (k == buf->len)
 		{
-			bsq->len = read(fd, bsq->buf, bsq->cap);
+			buf->len = read(fd, buf->str, buf->cap);
 			k = 0;
-			if (bsq->len <= 0)
+			if (buf->len <= 0)
 				return (0);
 		}
-		c = bsq->buf[k];
+		c = buf->str[k];
 		row_end = (bsq->r + 1) * bsq->x;
 		if (bsq->i == row_end && c == '\n')
 			bsq->r++;
@@ -268,30 +256,52 @@ int	read_map(int fd, t_bsq *bsq)
 }
 
 /*
-** make a new buffer of size bytes, copy the first len bytes of src into it,
-** free src. src can be NULL to just allocate
+** grow the read buffer to size bytes: a new buffer, the first len bytes
+** copied into it, the old one freed. buf->str can be NULL to just allocate
 */
-char	*ft_realloc(char *src, long len, long *cap, long size)
+char	*ft_realloc(t_buf *buf, long size)
 {
 	char	*dst;
 	long	i;
 
-	*cap = size;
 	dst = (char *)malloc(size);
 	if (!dst)
-	{
 		write(2, "malloc fail\n", 12);
-		free(src);
-		return (NULL);
-	}
 	i = 0;
-	while (i < len)
+	while (dst && i < buf->len)
 	{
-		dst[i] = src[i];
+		dst[i] = buf->str[i];
 		i++;
 	}
-	free(src);
+	free(buf->str);
+	buf->str = dst;
+	buf->cap = size;
 	return (dst);
+}
+
+/*
+** 3. we know x and y now: allocate the bitmap once, at its exact size, and
+** the int row. the row starts all 0: row[0] is the column left of the map,
+** and the rest is the row above the map, so the edges need no special case
+*/
+int	alloc_map(t_bsq *bsq)
+{
+	long	c;
+
+	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
+	bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
+	if (!bsq->map || !bsq->row)
+	{
+		write(2, "malloc fail\n", 12);
+		return (0);
+	}
+	c = 0;
+	while (c <= bsq->x)
+	{
+		bsq->row[c] = 0;
+		c++;
+	}
+	return (1);
 }
 
 /*

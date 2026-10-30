@@ -25,11 +25,15 @@
 #  define SPACED 0		//1 prints a space between cells: make spaced
 # endif
 
+typedef struct s_buf
+{
+	char	*str;	//read buffer: the first line, then chunks of cap bytes
+	long	len;	//bytes in str
+	long	cap;	//size of str
+}	t_buf;
+
 typedef struct s_bsq
 {
-	char	*buf;	//read buffer: the first line, then chunks of cap bytes
-	long	len;	//bytes in buf
-	long	cap;	//size of buf
 	char	*map;	//bitmap of obstacles, x * y bits
 	int		*row;	//row of square sizes, x + 1 ints, row[0] stays 0
 	long	x;		//width, length of the first line
@@ -46,10 +50,11 @@ typedef struct s_bsq
 
 char	*get_map(int fd, t_bsq *bsq);
 int		read_rules(int fd, t_bsq *bsq);
-int		read_first_line(int fd, t_bsq *bsq);
-int		read_map(int fd, t_bsq *bsq);
+int		read_first_line(int fd, t_bsq *bsq, t_buf *buf);
+int		read_map(int fd, t_bsq *bsq, t_buf *buf);
 
-char	*ft_realloc(char *src, long len, long *cap, long size);
+char	*ft_realloc(t_buf *buf, long size);
+int		alloc_map(t_bsq *bsq);
 void	solve_cell(t_bsq *bsq, int obstacle);
 void	print_square(t_bsq *bsq);
 void	print_line(t_bsq *bsq, char *line, long r);
