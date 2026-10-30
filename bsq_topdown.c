@@ -10,7 +10,7 @@
 **     ./bsq_topdown map
 **
 ** for each map, main calls get_map, then prints the square or "map error".
-** get_map runs the reading steps (each one does nothing once err is set):
+** get_map runs the reading steps, and stops at the first one that fails:
 **     1. read_rules       the rules line         -> y, empty, obstacle, full
 **     2. read_first_line  the first line         -> x
 **     3. (in get_map)     allocate the bitmap and the row of ints
@@ -34,7 +34,6 @@
 
 typedef struct s_bsq
 {
-	int		err;	//set by a step that fails, the next steps do nothing
 	char	*buf;	//read buffer: the first line, then chunks of cap bytes
 	long	len;	//bytes in buf
 	long	cap;	//size of buf
@@ -53,9 +52,9 @@ typedef struct s_bsq
 }	t_bsq;
 
 char	*get_map(int fd, t_bsq *bsq);
-void	read_rules(int fd, t_bsq *bsq);
-void	read_first_line(int fd, t_bsq *bsq);
-void	read_map(int fd, t_bsq *bsq);
+int		read_rules(int fd, t_bsq *bsq);
+int		read_first_line(int fd, t_bsq *bsq);
+int		read_map(int fd, t_bsq *bsq);
 char	*ft_realloc(char *src, long len, long *cap, long size);
 void	solve_cell(t_bsq *bsq, int obstacle);
 void	print_square(t_bsq *bsq);
@@ -87,7 +86,9 @@ int	main(int argc, char **argv)
 			print_square(&bsq);
 		else
 			write(2, "map error\n", 10);
-		free(map);
+		// whatever get_map allocated, even if it stopped halfway
+		free(bsq.buf);
+		free(bsq.map);
 		free(bsq.row);
 		// a line break between maps
 		if (argc > 2 && i < argc - 1)
@@ -98,45 +99,39 @@ int	main(int argc, char **argv)
 }
 
 /*
-** steps 1 to 4. returns the bitmap, solved, or NULL if anything failed.
-** the read buffer is freed here, the int row is freed by main: print_square
-** still needs it as its line buffer
+** steps 1 to 4. returns the bitmap, solved, or NULL as soon as a step fails.
+** main frees the read buffer, the bitmap and the int row, whatever happens:
+** print_square still needs the int row as its line buffer
 */
 char	*get_map(int fd, t_bsq *bsq)
 {
 	long	c;
 
-	read_rules(fd, bsq);
-	read_first_line(fd, bsq);
+	if (!read_rules(fd, bsq))
+		return (NULL);
+	if (!read_first_line(fd, bsq))
+		return (NULL);
 
 	// 3. we know x and y now: allocate the bitmap once, at its exact size,
 	//    and the int row. the row starts all 0: row[0] is the column left of
 	//    the map, and the rest is the row above the map, so the edges need
 	//    no special case
-	if (!bsq->err)
+	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
+	bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
+	if (!bsq->map || !bsq->row)
 	{
-		bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
-		bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
-		if (!bsq->map || !bsq->row)
-		{
-			write(2, "malloc fail\n", 12);
-			bsq->err = 1;
-		}
+		write(2, "malloc fail\n", 12);
+		return (NULL);
 	}
 	c = 0;
-	while (!bsq->err && c <= bsq->x)
+	while (c <= bsq->x)
 	{
 		bsq->row[c] = 0;
 		c++;
 	}
 
-	read_map(fd, bsq);
-	free(bsq->buf);
-	if (bsq->err)
-	{
-		free(bsq->map);
+	if (!read_map(fd, bsq))
 		return (NULL);
-	}
 	return (bsq->map);
 }
 
@@ -146,29 +141,28 @@ char	*get_map(int fd, t_bsq *bsq)
 ** it's read one byte at a time into a stack array, so we never read past
 ** its '\n'
 */
-void	read_rules(int fd, t_bsq *bsq)
+int	read_rules(int fd, t_bsq *bsq)
 {
 	char	l[14];
 	long	n;
 	long	i;
 
 	// read until '\n', at most 14 bytes
-	bsq->err = 1;
 	n = 0;
 	while (1)
 	{
 		if (read(fd, &l[n], 1) != 1)
-			return ;
+			return (0);
 		if (l[n] == '\n')
 			break ;
 		n++;
 		if (n == 14)
-			return ;
+			return (0);
 	}
 
 	// at least one digit, then exactly 3 characters
 	if (n < 4)
-		return ;
+		return (0);
 	i = 0;
 	while (i < n - 3 && '0' <= l[i] && l[i] <= '9')
 	{
@@ -176,21 +170,21 @@ void	read_rules(int fd, t_bsq *bsq)
 		i++;
 	}
 	if (i != n - 3 || bsq->y == 0 || bsq->y > INT_MAX)
-		return ;
+		return (0);
 
 	// the 3 characters must be printable and all different
 	while (i < n)
 	{
 		if (l[i] < ' ' || l[i] > '~')
-			return ;
+			return (0);
 		i++;
 	}
 	bsq->e = l[n - 3];
 	bsq->o = l[n - 2];
 	bsq->f = l[n - 1];
 	if (bsq->e == bsq->o || bsq->e == bsq->f || bsq->o == bsq->f)
-		return ;
-	bsq->err = 0;
+		return (0);
+	return (1);
 }
 
 /*
@@ -202,13 +196,11 @@ void	read_rules(int fd, t_bsq *bsq)
 ** the buffer keeps this size for the rest of the map: every later read()
 ** asks for about one line
 */
-void	read_first_line(int fd, t_bsq *bsq)
+int	read_first_line(int fd, t_bsq *bsq)
 {
 	long	n;
 	long	k;
 
-	if (bsq->err)
-		return ;
 	bsq->buf = ft_realloc(NULL, 0, &bsq->cap, BUF_START);
 	k = 0;
 	while (bsq->buf)
@@ -231,9 +223,9 @@ void	read_first_line(int fd, t_bsq *bsq)
 	}
 	bsq->x = k;
 
-	// no buffer, no '\n' before the end of the file, or an empty first line
-	if (!bsq->buf || k == bsq->len || k == 0)
-		bsq->err = 1;
+	// fails with no buffer, no '\n' before the end of the file, or an empty
+	// first line
+	return (bsq->buf && k < bsq->len && k > 0);
 }
 
 /*
@@ -245,14 +237,12 @@ void	read_first_line(int fd, t_bsq *bsq)
 ** a line that is too long fails here, before anything is written past the
 ** bitmap. bytes after the last row are ignored
 */
-void	read_map(int fd, t_bsq *bsq)
+int	read_map(int fd, t_bsq *bsq)
 {
 	long	k;
 	long	row_end;
 	char	c;
 
-	if (bsq->err)
-		return ;
 	k = 0;
 	while (bsq->r < bsq->y)
 	{
@@ -262,10 +252,7 @@ void	read_map(int fd, t_bsq *bsq)
 			bsq->len = read(fd, bsq->buf, bsq->cap);
 			k = 0;
 			if (bsq->len <= 0)
-			{
-				bsq->err = 1;
-				return ;
-			}
+				return (0);
 		}
 		c = bsq->buf[k];
 		row_end = (bsq->r + 1) * bsq->x;
@@ -274,12 +261,10 @@ void	read_map(int fd, t_bsq *bsq)
 		else if (bsq->i < row_end && (c == bsq->e || c == bsq->o))
 			solve_cell(bsq, c == bsq->o);
 		else
-		{
-			bsq->err = 1;
-			return ;
-		}
+			return (0);
 		k++;
 	}
+	return (1);
 }
 
 /*

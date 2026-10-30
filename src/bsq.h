@@ -27,7 +27,6 @@
 
 typedef struct s_bsq
 {
-	int		err;	//set by a step that fails, the next steps do nothing
 	char	l[14];	//the rules line, zeroed by main: (t_bsq){0}
 	char	*buf;	//read buffer: the first line, then chunks of cap bytes
 	long	len;	//bytes in buf
@@ -47,9 +46,9 @@ typedef struct s_bsq
 }	t_bsq;
 
 char	*get_map(int fd, t_bsq *bsq);
-void	read_rules(int fd, t_bsq *bsq);
-void	read_first_line(int fd, t_bsq *bsq);
-void	read_map(int fd, t_bsq *bsq);
+int		read_rules(int fd, t_bsq *bsq);
+int		read_first_line(int fd, t_bsq *bsq);
+int		read_map(int fd, t_bsq *bsq);
 
 char	*ft_realloc(char *src, long len, long *cap, long size);
 void	solve_cell(t_bsq *bsq, int obstacle);

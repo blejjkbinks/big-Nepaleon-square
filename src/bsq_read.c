@@ -32,7 +32,8 @@ int	main(int argc, char **argv)
 			print_square(&bsq);
 		else
 			write(2, "map error\n", 10);
-		free(map);
+		free(bsq.buf);
+		free(bsq.map);
 		free(bsq.row);
 		if (argc > 2 && i < argc - 1)
 			write(1, "\n", 1);
@@ -44,30 +45,25 @@ char	*get_map(int fd, t_bsq *bsq)
 {
 	long	c;
 
-	read_rules(fd, bsq);
-	read_first_line(fd, bsq);
-	if (!bsq->err)
-		bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
-	if (!bsq->err)
-		bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
-	if (!bsq->err && (!bsq->map || !bsq->row))
-		bsq->err = write(2, "malloc fail\n", 12);
+	if (!read_rules(fd, bsq) || !read_first_line(fd, bsq))
+		return (NULL);
+	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
+	bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
+	if ((!bsq->map || !bsq->row) && write(2, "malloc fail\n", 12))
+		return (NULL);
 	c = -1;
-	while (!bsq->err && ++c <= bsq->x)
+	while (++c <= bsq->x)
 		bsq->row[c] = 0;
-	read_map(fd, bsq);
-	free(bsq->buf);
-	if (!bsq->err)
-		return (bsq->map);
-	free(bsq->map);
-	return (NULL);
+	if (!read_map(fd, bsq))
+		return (NULL);
+	return (bsq->map);
 }
 
-void	read_rules(int fd, t_bsq *bsq)
+int	read_rules(int fd, t_bsq *bsq)
 {
 	char	*l;
 	long	n;
-	long	k;
+	long	ok;
 	long	i;
 
 	l = bsq->l;
@@ -77,23 +73,21 @@ void	read_rules(int fd, t_bsq *bsq)
 	i = 0;
 	while (i < n - 3 && '0' <= l[i] && l[i] <= '9')
 		bsq->y = bsq->y * 10 + l[i++] - '0';
-	k = (n < 14 && l[n] == '\n' && n > 3 && i == n - 3);
-	while (k && i < n && ' ' <= l[i] && l[i] <= '~')
+	ok = (n < 14 && l[n] == '\n' && n > 3 && i == n - 3);
+	while (ok && i < n && ' ' <= l[i] && l[i] <= '~')
 		i++;
-	bsq->e = l[(n - 3) * k];
-	bsq->o = l[(n - 2) * k];
-	bsq->f = l[(n - 1) * k];
-	bsq->err = (!k || i != n || !bsq->y || bsq->y > INT_MAX
-			|| bsq->e == bsq->o || bsq->e == bsq->f || bsq->o == bsq->f);
+	bsq->e = l[(n - 3) * ok];
+	bsq->o = l[(n - 2) * ok];
+	bsq->f = l[(n - 1) * ok];
+	return (ok && i == n && bsq->y && bsq->y <= INT_MAX
+		&& bsq->e != bsq->o && bsq->e != bsq->f && bsq->o != bsq->f);
 }
 
-void	read_first_line(int fd, t_bsq *bsq)
+int	read_first_line(int fd, t_bsq *bsq)
 {
 	long	n;
 	long	k;
 
-	if (bsq->err)
-		return ;
 	bsq->buf = ft_realloc(NULL, 0, &bsq->cap, BUF_START);
 	k = 0;
 	n = 1;
@@ -109,15 +103,15 @@ void	read_first_line(int fd, t_bsq *bsq)
 					bsq->cap * BUF_GROW);
 	}
 	bsq->x = k;
-	bsq->err = (!bsq->buf || k == bsq->len || k == 0);
+	return (bsq->buf && k < bsq->len && k > 0);
 }
 
-void	read_map(int fd, t_bsq *bsq)
+int	read_map(int fd, t_bsq *bsq)
 {
 	long	k;
 
 	k = -1;
-	while (!bsq->err && bsq->r < bsq->y)
+	while (bsq->r < bsq->y)
 	{
 		if (++k == bsq->len)
 		{
@@ -125,13 +119,14 @@ void	read_map(int fd, t_bsq *bsq)
 			k = 0;
 		}
 		if (bsq->len <= 0)
-			bsq->err = 1;
+			return (0);
 		else if (bsq->i == (bsq->r + 1) * bsq->x && bsq->buf[k] == '\n')
 			bsq->r++;
 		else if (bsq->i < (bsq->r + 1) * bsq->x
 			&& (bsq->buf[k] == bsq->e || bsq->buf[k] == bsq->o))
 			solve_cell(bsq, bsq->buf[k] == bsq->o);
 		else
-			bsq->err = 1;
+			return (0);
 	}
+	return (1);
 }
