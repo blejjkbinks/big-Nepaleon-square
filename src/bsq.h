@@ -27,7 +27,6 @@
 
 typedef struct s_bsq
 {
-	char	l[14];	//the rules line, zeroed by main: (t_bsq){0}
 	char	*buf;	//read buffer: the first line, then chunks of cap bytes
 	long	len;	//bytes in buf
 	long	cap;	//size of buf

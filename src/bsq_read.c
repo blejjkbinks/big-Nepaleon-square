@@ -61,15 +61,15 @@ char	*get_map(int fd, t_bsq *bsq)
 
 int	read_rules(int fd, t_bsq *bsq)
 {
-	char	*l;
+	char	l[14];
 	long	n;
 	long	ok;
 	long	i;
 
-	l = bsq->l;
 	n = 0;
-	while (n < 14 && read(fd, &l[n], 1) == 1 && l[n] != '\n')
-		n++;
+	l[0] = 0;
+	while (read(fd, &l[n], 1) == 1 && l[n] != '\n' && ++n < 14)
+		l[n] = 0;
 	i = 0;
 	while (i < n - 3 && '0' <= l[i] && l[i] <= '9')
 		bsq->y = bsq->y * 10 + l[i++] - '0';
