@@ -96,15 +96,15 @@ each value is calculated like this:
 		else
 			write(2, "map error\n", 10);
 ```
-and `get_map` runs the reading steps, one function each. `&&` stops at the first one that fails:
+and `get_map` runs the reading steps, one function each. each step returns `0` when it worked and `1` on an error, so `||` stops at the first one that fails:
 ```c
 	buf = (t_buf){0};
-	ok = (read_rules(fd, bsq)				//y, and the empty, obstacle and full characters
-		&& read_first_line(fd, bsq, &buf)	//x
-		&& alloc_map(bsq)					//the bitmap and the row of ints, at their exact size
-		&& read_map(fd, bsq, &buf));		//every line: each cell is stored as a bit and solved
+	err = (read_rules(fd, bsq)				//y, and the empty, obstacle and full characters
+		|| read_first_line(fd, bsq, &buf)	//x
+		|| alloc_map(bsq)					//the bitmap and the row of ints, at their exact size
+		|| read_map(fd, bsq, &buf));		//every line: each cell is stored as a bit and solved
 	free(buf.str);
-	if (!ok)
+	if (err)
 		return (NULL);
 	return (bsq->map);
 ```
@@ -360,10 +360,9 @@ every one of these is real, from `src/`. each one keeps a function under 25 line
 
 | trick | what it saves | honest version |
 |---|---|---|
-| `if ((!bsq->map \|\| !bsq->row) && write(2, "malloc fail\n", 12))`<br>`return (0);` | `write` returns `12`, or `-1` if it fails: never `0`, so the message fits inside the condition: 2 lines | `if (!bsq->map \|\| !bsq->row)`<br>`{`<br>`write(2, "malloc fail\n", 12);`<br>`return (0);`<br>`}` |
+| `if ((!bsq->map \|\| !bsq->row) && write(2, "malloc fail\n", 12))`<br>`return (1);` | `write` returns `12`, or `-1` if it fails: never `0`, so the message fits inside the condition: 2 lines | `if (!bsq->map \|\| !bsq->row)`<br>`{`<br>`write(2, "malloc fail\n", 12);`<br>`return (1);`<br>`}` |
 | `while (++c < bsq->x)` with `c = -1;` before the loop | the `c++;` line at the end of the loop body | `c = 0;`<br>`while (c < bsq->x)`<br>`{`<br>`...`<br>`c++;`<br>`}` |
 | `l[0] = 0;`<br>`while (read(fd, &l[n], 1) == 1 && l[n] != '\n' && ++n < 14)`<br>`l[n] = 0;` | the `read`, the end-of-file check, the end-of-line check and the counter all live in the loop condition, so the body is one line and needs no braces. the body clears the next byte before it's read: if the file ends there, `read` writes nothing and it stays `0`, so `l[n] == '\n'` afterwards is only true when the line really ended. (the norm forbids `char l[14] = {0};`, declaration and assignment on one line) | a `while (n < 14)` loop with a `read`, then two `if`s with a `break`, then `n++` |
-| `ok = (n < 14 && l[n] == '\n' && n > 3 && i == n - 3);`<br>`bsq->e = l[(n - 3) * ok];` | `ok` is `1` when the rules line has the right shape, `0` otherwise. multiplying by it turns a bad index into `0`, so the characters are read without going outside the array, and without an `if`/`return` | `if (n < 4 \|\| ...)`<br>`{`<br>`bsq->err = 1;`<br>`return ;`<br>`}`<br>`bsq->e = l[n - 3];` |
 | `row[c + 1] = (row[c + 1] + 1) * !obstacle;` | multiplying by `0` or `1` replaces an `if`/`else`: 3 lines | `if (obstacle)`<br>`row[c + 1] = 0;`<br>`else`<br>`row[c + 1]++;` |
 | the `t_bsq` struct carries the map's state everywhere | one pointer instead of up to 9 parameters (the limit is 4) and instead of 9 local variables (the limit is 5) | separate variables and parameters |
 | `map[i / 8] = (map[i / 8] & ~(1 << (i % 8)))`<br>`\| (obstacle << (i % 8));` | clears the bit, then sets it if `obstacle` is `1`, in one statement and without an `if`. written inline instead of calling a `ft_bit` function: no function slot, and 200 million fewer calls on a 10000 by 10000 map (2.88s to 2.55s). `ft_bit` is still in `bsq_write.c`, commented out | `if (obstacle)`<br>`map[i / 8] \|= (1 << (i % 8));`<br>`else`<br>`map[i / 8] &= ~(1 << (i % 8));` |

@@ -43,13 +43,13 @@ int	main(int argc, char **argv)
 char	*get_map(int fd, t_bsq *bsq)
 {
 	t_buf	buf;
-	int		ok;
+	int		err;
 
 	buf = (t_buf){0};
-	ok = (read_rules(fd, bsq) && read_first_line(fd, bsq, &buf)
-			&& alloc_map(bsq) && read_map(fd, bsq, &buf));
+	err = (read_rules(fd, bsq) || read_first_line(fd, bsq, &buf)
+			|| alloc_map(bsq) || read_map(fd, bsq, &buf));
 	free(buf.str);
-	if (!ok)
+	if (err)
 		return (NULL);
 	return (bsq->map);
 }
@@ -58,7 +58,6 @@ int	read_rules(int fd, t_bsq *bsq)
 {
 	char	l[14];
 	long	n;
-	long	ok;
 	long	i;
 
 	n = 0;
@@ -68,14 +67,15 @@ int	read_rules(int fd, t_bsq *bsq)
 	i = 0;
 	while (i < n - 3 && '0' <= l[i] && l[i] <= '9')
 		bsq->y = bsq->y * 10 + l[i++] - '0';
-	ok = (n < 14 && l[n] == '\n' && n > 3 && i == n - 3);
-	while (ok && i < n && ' ' <= l[i] && l[i] <= '~')
+	if (n >= 14 || l[n] != '\n' || n < 4 || i != n - 3)
+		return (1);
+	while (i < n && ' ' <= l[i] && l[i] <= '~')
 		i++;
-	bsq->e = l[(n - 3) * ok];
-	bsq->o = l[(n - 2) * ok];
-	bsq->f = l[(n - 1) * ok];
-	return (ok && i == n && bsq->y && bsq->y <= INT_MAX
-		&& bsq->e != bsq->o && bsq->e != bsq->f && bsq->o != bsq->f);
+	bsq->e = l[n - 3];
+	bsq->o = l[n - 2];
+	bsq->f = l[n - 1];
+	return (i != n || !bsq->y || bsq->y > INT_MAX
+		|| bsq->e == bsq->o || bsq->e == bsq->f || bsq->o == bsq->f);
 }
 
 int	read_first_line(int fd, t_bsq *bsq, t_buf *buf)
@@ -97,7 +97,7 @@ int	read_first_line(int fd, t_bsq *bsq, t_buf *buf)
 			ft_realloc(buf, buf->cap * BUF_GROW);
 	}
 	bsq->x = k;
-	return (buf->str && k < buf->len && k > 0);
+	return (!buf->str || k == buf->len || k == 0);
 }
 
 int	read_map(int fd, t_bsq *bsq, t_buf *buf)
@@ -113,14 +113,14 @@ int	read_map(int fd, t_bsq *bsq, t_buf *buf)
 			k = 0;
 		}
 		if (buf->len <= 0)
-			return (0);
+			return (1);
 		else if (bsq->i == (bsq->r + 1) * bsq->x && buf->str[k] == '\n')
 			bsq->r++;
 		else if (bsq->i < (bsq->r + 1) * bsq->x
 			&& (buf->str[k] == bsq->e || buf->str[k] == bsq->o))
 			solve_cell(bsq, buf->str[k] == bsq->o);
 		else
-			return (0);
+			return (1);
 	}
-	return (1);
+	return (0);
 }

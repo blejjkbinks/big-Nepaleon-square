@@ -36,11 +36,11 @@ int	alloc_map(t_bsq *bsq)
 	bsq->map = (char *)malloc((bsq->x * bsq->y + 7) / 8);
 	bsq->row = (int *)malloc((bsq->x + 1) * sizeof(int));
 	if ((!bsq->map || !bsq->row) && write(2, "malloc fail\n", 12))
-		return (0);
+		return (1);
 	c = -1;
 	while (++c <= bsq->x)
 		bsq->row[c] = 0;
-	return (1);
+	return (0);
 }
 
 void	solve_cell(t_bsq *bsq, int obstacle)

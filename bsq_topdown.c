@@ -10,6 +10,7 @@
 **     ./bsq_topdown map
 **
 ** for each map, main calls get_map, then prints the square or "map error".
+** every step returns 0 when it worked, and 1 on an error.
 ** get_map runs the reading steps, and stops at the first one that fails:
 **     1. read_rules       the rules line         -> y, empty, obstacle, full
 **     2. read_first_line  the first line         -> x
@@ -103,7 +104,7 @@ int	main(int argc, char **argv)
 }
 
 /*
-** steps 1 to 4, one after the other: && stops at the first one that fails.
+** steps 1 to 4, one after the other: || stops at the first one that fails.
 ** the read buffer only lives here, and is freed here whatever happens.
 ** the bitmap and the int row are freed by main: print_square still needs
 ** them. returns the bitmap, solved, or NULL
@@ -111,15 +112,15 @@ int	main(int argc, char **argv)
 char	*get_map(int fd, t_bsq *bsq)
 {
 	t_buf	buf;
-	int		ok;
+	int		err;
 
 	buf = (t_buf){0};
-	ok = read_rules(fd, bsq)
-		&& read_first_line(fd, bsq, &buf)
-		&& alloc_map(bsq)
-		&& read_map(fd, bsq, &buf);
+	err = read_rules(fd, bsq)
+		|| read_first_line(fd, bsq, &buf)
+		|| alloc_map(bsq)
+		|| read_map(fd, bsq, &buf);
 	free(buf.str);
-	if (!ok)
+	if (err)
 		return (NULL);
 	return (bsq->map);
 }
@@ -141,17 +142,17 @@ int	read_rules(int fd, t_bsq *bsq)
 	while (1)
 	{
 		if (read(fd, &l[n], 1) != 1)
-			return (0);
+			return (1);
 		if (l[n] == '\n')
 			break ;
 		n++;
 		if (n == 14)
-			return (0);
+			return (1);
 	}
 
 	// at least one digit, then exactly 3 characters
 	if (n < 4)
-		return (0);
+		return (1);
 	i = 0;
 	while (i < n - 3 && '0' <= l[i] && l[i] <= '9')
 	{
@@ -159,21 +160,21 @@ int	read_rules(int fd, t_bsq *bsq)
 		i++;
 	}
 	if (i != n - 3 || bsq->y == 0 || bsq->y > INT_MAX)
-		return (0);
+		return (1);
 
 	// the 3 characters must be printable and all different
 	while (i < n)
 	{
 		if (l[i] < ' ' || l[i] > '~')
-			return (0);
+			return (1);
 		i++;
 	}
 	bsq->e = l[n - 3];
 	bsq->o = l[n - 2];
 	bsq->f = l[n - 1];
 	if (bsq->e == bsq->o || bsq->e == bsq->f || bsq->o == bsq->f)
-		return (0);
-	return (1);
+		return (1);
+	return (0);
 }
 
 /*
@@ -213,7 +214,7 @@ int	read_first_line(int fd, t_bsq *bsq, t_buf *buf)
 
 	// fails with no buffer, no '\n' before the end of the file, or an empty
 	// first line
-	return (buf->str && k < buf->len && k > 0);
+	return (!buf->str || k == buf->len || k == 0);
 }
 
 /*
@@ -240,7 +241,7 @@ int	read_map(int fd, t_bsq *bsq, t_buf *buf)
 			buf->len = read(fd, buf->str, buf->cap);
 			k = 0;
 			if (buf->len <= 0)
-				return (0);
+				return (1);
 		}
 		c = buf->str[k];
 		row_end = (bsq->r + 1) * bsq->x;
@@ -249,10 +250,10 @@ int	read_map(int fd, t_bsq *bsq, t_buf *buf)
 		else if (bsq->i < row_end && (c == bsq->e || c == bsq->o))
 			solve_cell(bsq, c == bsq->o);
 		else
-			return (0);
+			return (1);
 		k++;
 	}
-	return (1);
+	return (0);
 }
 
 /*
@@ -293,7 +294,7 @@ int	alloc_map(t_bsq *bsq)
 	if (!bsq->map || !bsq->row)
 	{
 		write(2, "malloc fail\n", 12);
-		return (0);
+		return (1);
 	}
 	c = 0;
 	while (c <= bsq->x)
@@ -301,7 +302,7 @@ int	alloc_map(t_bsq *bsq)
 		bsq->row[c] = 0;
 		c++;
 	}
-	return (1);
+	return (0);
 }
 
 /*
